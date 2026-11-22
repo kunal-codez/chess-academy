@@ -61,6 +61,12 @@ export class ChessService {
     return this.game.fen();
   }
 
+  public getEpd(): string {
+    const parts = this.game.fen().trim().split(/\s+/);
+    if (parts.length < 4) return this.game.fen();
+    return `${parts[0]} ${parts[1]} ${parts[2]} ${parts[3]}`;
+  }
+
   public getPgn(): string {
     return this.game.pgn();
   }

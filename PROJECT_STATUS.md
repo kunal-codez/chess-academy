@@ -7,72 +7,73 @@
 ---
 
 ## 1. Current Status Summary
-**Phase 1 (Prompt 7): Interactive Chessboard & Controls Engine is 100% COMPLETE.**
+**Prompt 8 (Chess Opening Database & ECO Classification System) is 100% COMPLETE.**
 
-The complete interactive chessboard and controls system has been implemented with strict chess accuracy via `chess.js`, fluid board rendering via `chessground`, a responsive mobile/desktop user interface, full history navigation, undo/redo handling, promotion modal, load/copy utilities for FEN and PGN, and a 65-point integration test suite with zero failures.
+The local chess opening database and ECO recognition engine have been built, verified, and linked with the interactive board. 
+
+The dataset contains **3,865 opening records** covering **all 500 ECO codes (A00–E99)** without gaps. All moves are 100% legal chess.js sequences, indexed for O(1) retrieval, and equipped with exact matching, longest prefix matching, and EPD transposition recognition.
 
 ---
 
-## 2. Completed Work (Phase 1 / Prompt 7)
+## 2. Completed Work (Prompt 8)
 
-### A. Board Functionality
-* [x] Standard 8×8 board viewport rendering 32 pieces in starting arrangement.
-* [x] Drag-and-drop piece movement and click-to-move square targeting.
-* [x] Automatic legal destination square indicators (dots/rings).
-* [x] Selected square and last-move highlights.
-* [x] King in check highlighting.
-* [x] Board orientation toggling (White at bottom / Black at bottom).
-* [x] Window resize listener triggering board re-draws for mobile and desktop screens.
+### A. Data Sourcing & Verification
+* **Source:** Official [`lichess-org/chess-openings`](https://github.com/lichess-org/chess-openings) repository (DOI: `10.5281/zenodo.19608774`).
+* **Licence & Attribution:** CC0 1.0 Universal (Public Domain). "As a collection of facts, this data set is in the public domain. Considerable effort was spent curating and cleaning the data. Insofar as that qualifies for copyright, the work is released under the CC0 Public Domain Dedication."
+* **Compilation:** Downloaded and processed `a.tsv`, `b.tsv`, `c.tsv`, `d.tsv`, and `e.tsv`.
+* **Programmatic Coverage Audit:**
+  * **Total Records:** **3,865 opening records**.
+  * **ECO Codes:** **500 distinct ECO codes** (100 in Vol A, 100 in Vol B, 100 in Vol C, 100 in Vol D, 100 in Vol E). Zero missing ECO codes from A00 to E99.
+  * **Chess Correctness:** Every single PGN move sequence was simulated and validated through `chess.js` with **0 errors**.
 
-### B. Chess Rules Engine (`chess.js`)
-* [x] Turn management (White and Black).
-* [x] Legal move validation and immediate illegal move snapback.
-* [x] Kingside (`O-O`) and Queenside (`O-O-O`) castling.
-* [x] Prevention of castling while in check or through check.
-* [x] En passant capture validation and captured pawn removal.
-* [x] Pawn promotion modal allowing user selection between Queen, Rook, Bishop, and Knight.
-* [x] Check and Checkmate detection with winner attribution.
-* [x] Draw detection (Stalemate, Threefold Repetition, 50-Move Rule, Insufficient Material).
+### B. Scalable Database & Data Model
+* **Structured Records (`src/types/opening.types.ts`):** Each record contains `id`, `eco`, `name`, `family`, `variation`, `subvariation`, `pgn`, `movesSan`, `movesUci`, `epd`, `fen`, `plyCount`, and `source`.
+* **Indexed Storage (`src/data/openings/`):**
+  * `eco-a.json` (823 records, Vol A)
+  * `eco-b.json` (781 records, Vol B)
+  * `eco-c.json` (1,250 records, Vol C)
+  * `eco-d.json` (644 records, Vol D)
+  * `eco-e.json` (367 records, Vol E)
+  * `openings.json` (3,865 complete unified dataset)
+* **IndexedDB Integration (`src/db/db.ts`):** `openings` table indexed by `id`, `eco`, `family`, `name`, `epd`, `plyCount`. Includes `seedOpenings()` with duplicate import prevention.
 
-### C. Controls & Game History
-* [x] **New Game:** Resets board, history, and clears redo stack.
-* [x] **Reset Position:** Reverts to the start of the current position/FEN.
-* [x] **Undo & Redo:** History navigation with branching redo stack.
-* [x] **Flip Board:** Seamlessly toggles board perspective.
-* [x] **Copy FEN & Copy PGN:** One-click clipboard copy with animated visual feedback.
-* [x] **Load FEN Modal:** Validates FEN format with error feedback and sample position presets.
-* [x] **Load PGN Modal:** Validates PGN format and imports full game histories.
-* [x] **Move History Table:** Numbered move list with SAN, auto-scroll to current move, and click-to-jump navigation.
-* [x] **History Step Bar:** First (`|<`), Previous (`<`), Next (`>`), and Last (`>|`) buttons with accurate board state reconstruction.
-* [x] **Game Status Badge:** Displays active turn, check alerts, checkmate/draw outcomes, and move counts.
-* [x] **Theme Switcher:** Toggles between Dark and Light UI themes.
+### C. Opening Recognition Engine (`OpeningDatabaseService.ts`)
+* **Exact Matching:** Matches full completed opening lines instantly.
+* **Longest Prefix Matching:** Detects the deepest matching opening variation when a game progresses beyond book theory (e.g., Najdorf English Attack at ply 11 when user has played 18 moves).
+* **EPD Transposition Engine:** Detects alternative move orders reaching identical chess positions (e.g., 1.c4 e6 2.d4 d5 transposing into Queen's Gambit Declined) and flags `transposition: true`.
+* **Divergence Guard:** Correctly classifies arbitrary/random move sequences as unrecognized rather than falsely matching a single initial move.
+* **Reactive Board Integration:** Automatically updates the recognized opening and ECO pill in `GameStatusBadge` as moves are played, stepped through, undone, or redone on the board.
+
+### D. Search & Retrieval Service
+* **Name Search:** Fast, case-insensitive substring search matching name, family, variation, or subvariation.
+* **ECO Search:** Exact code (`B90`), prefix code (`C1`), and range queries (`B90`–`B99`).
+* **Family Search:** Retrieves all variations belonging to a specific opening family (e.g. `Sicilian Defense`, `French Defense`).
+* **Continuations / Candidate Lines:** Returns next potential opening lines branching from the current board position.
 
 ---
 
 ## 3. Test Results
 
 ### Automated Integration Suite (`npm test`)
-* **Chessboard & Controls Suite (`chessboard-controls.test.ts`):** 65 PASSED, 0 FAILED.
-  * Verified initial position, legal moves, illegal move rejection, turn switching, castling (kingside/queenside/check restrictions), en passant, pawn promotion (Q/N/R/B), check detection, checkmate, stalemate, draws, undo/redo, FEN export/import, PGN export/import, history navigation, and Chessground destination mapping.
-* **Resource Integration Suite (`run-all-integration-tests.ts`):** 23 PASSED, 0 FAILED.
-* **Total Automated Checks:** **88 PASSED, 0 FAILED**.
-* **TypeScript Compilation (`tsc`):** 0 errors.
-* **Production Build (`vite build`):** Clean build in 20.4s (bundle: 78.1 kB gzip).
+* **Opening Database Suite (`opening-database.test.ts`):** **52 PASSED, 0 FAILED**.
+  * Verified A00, A99, B00, B99, C00, C99, D00, D99, E00, E99 coverage, full 500-ECO audit, name search, ECO search, mainline recognition, variation recognition, partial sequence matching, unknown opening handling, transposition recognition, undo/redo updates, IndexedDB access, duplicate prevention, and schema integrity.
+* **Chessboard & Controls Suite (`chessboard-controls.test.ts`):** **65 PASSED, 0 FAILED**.
+* **Resource Integration Suite (`run-all-integration-tests.ts`):** **23 PASSED, 0 FAILED**.
+* **Total Project Automated Checks:** **140 PASSED, 0 FAILED**.
+* **TypeScript Compilation (`tsc`):** **0 errors**.
+* **Production Build (`vite build`):** Clean build in 17.1s. Code-split with `openings-data` chunk (`229.2 kB` gzip) and main app entry (`79.5 kB` gzip).
 * **Development Server:** Verified responsive at `http://127.0.0.1:3000` with HTTP 200 OK.
 
 ---
 
-## 4. Architectural Decisions & Constraints
-* **Decoupled Architecture:** `ChessService` remains the sole authority on chess logic; React components only render state and dispatch validated actions.
-* **Branch-Safe History Navigation:** When viewing historical moves, pieces cannot be accidentally displaced; the user can jump to the latest position to continue playing.
-* **No Unapproved Dependencies:** Zero new packages installed. ₹0 budget maintained.
-* **Deferred Integrations:** Stockfish WASM and Opening Database remain clean and untouched, ready for their dedicated phases (Phases 2 and 3).
+## 4. Known Dataset Characteristics & Limitations
+* **Fact-Based Classification:** The dataset classifies named positions according to standard master opening taxonomy. Deep endgame positions or arbitrary pawn pushes that have no master historical name are classified as uncatalogued positions.
+* **Multiple Line Names:** Some openings have multiple move orders to reach the same named position. These are retained as distinct records with unique IDs to support all move-order transpositions.
 
 ---
 
 ## 5. Next Development Phase
-* **Phase 2: Local Stockfish Engine & Evaluation Bar**
-  * Connect local Web Worker Stockfish WASM engine.
-  * Continuous position evaluation bar (centipawns & forced mate).
-  * Candidate moves table (multi-PV) and depth selector.
-  * Blunder and mistake indicators.
+* **Phase 3: Opening Variation Tree Explorer**
+  * Interactive branching tree view.
+  * Move-by-move variation comparison.
+  * Strategic plans, tactical motifs, and opening traps.

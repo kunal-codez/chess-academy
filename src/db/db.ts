@@ -1,5 +1,6 @@
 import Dexie from 'dexie';
 import type { Table } from 'dexie';
+import type { OpeningRecord } from '../types/opening.types.ts';
 
 export interface SavedPosition {
   id?: number;
@@ -36,19 +37,55 @@ export interface LichessCacheEntry {
   }[];
 }
 
+export interface DatasetMetadata {
+  key: string;
+  version: string;
+  source: string;
+  recordCount: number;
+  importedAt: number;
+}
+
 export class ChessAcademyDatabase extends Dexie {
   savedPositions!: Table<SavedPosition, number>;
   repertoires!: Table<RepertoireItem, number>;
   lichessCache!: Table<LichessCacheEntry, string>;
+  openings!: Table<OpeningRecord, string>;
+  metadata!: Table<DatasetMetadata, string>;
 
   constructor() {
     super('ChessAcademyDB');
-    this.version(1).stores({
+    this.version(2).stores({
       savedPositions: '++id, fen, normalizedFen, createdAt',
       repertoires: '++id, side, fen, name, createdAt',
-      lichessCache: 'fenKey, cachedAt'
+      lichessCache: 'fenKey, cachedAt',
+      openings: 'id, eco, family, name, epd, plyCount',
+      metadata: 'key, version'
     });
   }
 }
 
 export const db = new ChessAcademyDatabase();
+
+/**
+ * Seeds the Dexie database with opening records if not already populated.
+ * Prevents duplicate insertions by checking count and using bulkPut with unique IDs.
+ */
+export async function seedOpenings(openingsData: OpeningRecord[]): Promise<{ count: number; newlyInserted: boolean }> {
+  const currentCount = await db.openings.count();
+  if (currentCount > 0) {
+    return { count: currentCount, newlyInserted: false };
+  }
+
+  // Bulk put ensures atomic insertion without duplicates
+  await db.openings.bulkPut(openingsData);
+  await db.metadata.put({
+    key: 'openings_dataset',
+    version: '1.0.0',
+    source: 'https://github.com/lichess-org/chess-openings',
+    recordCount: openingsData.length,
+    importedAt: Date.now()
+  });
+
+  const finalCount = await db.openings.count();
+  return { count: finalCount, newlyInserted: true };
+}

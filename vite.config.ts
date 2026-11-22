@@ -9,5 +9,14 @@ export default defineConfig({
   server: {
     port: 3000,
     open: false
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'openings-data': ['./src/data/openings/openings.json']
+        }
+      }
+    }
   }
 });

@@ -7,15 +7,17 @@ A professional, offline-first Chess Opening Academy, repertoire preparation, ana
 
 ---
 
-## Current Status: Phase 1 (Interactive Chessboard & Controls) Complete
+## Current Status: Phase 2 (Opening Database & ECO System) Complete
 
-The platform features a fully functional, mobile-responsive interactive chessboard with strict chess rule validation, complete controls, history navigation, and FEN/PGN utilities:
+The platform contains the complete official Lichess opening classification dataset with 100% ECO coverage and an intelligent real-time opening recognition engine:
 
-* **Board Engine:** Powered by `chessground` with 60 FPS animations, drag-and-drop, click-to-move, legal move highlights, last move highlights, check highlights, and orientation flipping.
-* **Rules Authority:** Powered by `chess.js` covering legal/illegal moves, castling (kingside/queenside), en passant, pawn promotion with piece picker (Queen, Rook, Bishop, Knight), check, checkmate, stalemate, threefold repetition, fifty-move rule, and insufficient material draws.
-* **Controls:** New Game, Reset, Undo, Redo (with branching redo stack), Flip Board, Copy FEN, Copy PGN, Load FEN (with presets), and Load PGN.
-* **History Navigation:** Numbered SAN move list with jump-to-move and navigation controls (`|<`, `<`, `>`, `>|`).
-* **Themes:** Dark and Light interface options.
+* **Official Sourced Dataset:** Sourced from [`lichess-org/chess-openings`](https://github.com/lichess-org/chess-openings) (CC0 Public Domain).
+* **3,865 Verified Opening Records:** Every move sequence is simulated and validated by `chess.js` (0 illegal moves).
+* **100% ECO Coverage:** Full coverage across all 500 ECO codes from **A00 to E99** without gaps.
+* **Intelligent Recognition Engine:** Identifies exact lines, deepest matching variations, transpositions via EPD, and continuations in real time as moves are played or stepped through.
+* **Search & Retrieval:** Search by Opening Name, ECO Code, Family, Variation, or ECO Range.
+* **Offline-First:** Available 100% offline via local bundled JSON chunks and IndexedDB (`Dexie.js`).
+* **Interactive Chessboard:** 60 FPS board viewport with legal move validation, castling, en passant, promotion modal, history navigation, FEN/PGN utilities, and dark/light themes.
 
 ---
 
@@ -25,9 +27,10 @@ The platform features a fully functional, mobile-responsive interactive chessboa
 | :--- | :--- | :--- | :--- |
 | **Framework & Build** | React 18, TypeScript 5.4, Vite 5 | MIT | Fast component architecture, strict typing, sub-second HMR |
 | **Chess Logic** | `chess.js` (1.4.0) | BSD-2-Clause | Authoritative rules engine, FEN/PGN, legal move validation |
+| **Opening Database** | `lichess-org/chess-openings` | CC0 Public Domain | 3,865 opening records across 500 ECO codes (A00–E99) |
 | **Board Viewport** | `chessground` (9.2.1) | GPL-3.0 | 60 FPS board animations, touch & drag on mobile, arrows, legal dots |
-| **Local Engine** | Stockfish 16/17 (WASM) | GPL-3.0 | Client-side Web Worker engine (Phase 2 integration) |
-| **Offline Database** | Dexie.js (IndexedDB 4.0) | Apache-2.0 | Persistent local storage for repertoires, lessons, and stats cache |
+| **Local Engine** | Stockfish 16/17 (WASM) | GPL-3.0 | Client-side Web Worker engine (Phase 4 integration) |
+| **Offline Database** | Dexie.js (IndexedDB 4.0) | Apache-2.0 | Persistent local storage for repertoires, lessons, and openings |
 | **Statistics** | Lichess Opening Explorer API | CC0 / Free | Master game win/draw percentages with local rate limiting and caching |
 | **Styling** | Tailwind CSS 3.4, Lucide React | MIT | Clean, responsive desktop and Android UI, dark/light themes |
 
@@ -50,7 +53,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### 3. Run Automated Tests
 
-Run the complete 88-point automated test suite:
+Run the complete 140-point automated test suite:
 
 ```bash
 npm test
@@ -68,4 +71,4 @@ Generates an optimized, tree-shaken static production bundle in `dist/`.
 ## Licence
 
 Licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).  
-Aligned with the licencing obligations of **Chessground** and **Stockfish**.
+Aligned with the licencing obligations of **Chessground** and **Stockfish**. Opening classification dataset is under **CC0 1.0 Universal (Public Domain)**.

@@ -9,6 +9,8 @@ import { MoveHistory } from './MoveHistory.tsx';
 import { GameStatusBadge } from './GameStatusBadge.tsx';
 import { PromotionModal } from './PromotionModal.tsx';
 import { LoadPositionModal } from './LoadPositionModal.tsx';
+import { openingDatabase } from '../../services/OpeningDatabaseService.ts';
+import type { OpeningRecognitionResult } from '../../types/opening.types.ts';
 import { Sun, Moon } from 'lucide-react';
 
 export const InteractiveChessArena: React.FC = () => {
@@ -24,6 +26,7 @@ export const InteractiveChessArena: React.FC = () => {
   const [historySnapshots, setHistorySnapshots] = useState<HistorySnapshot[]>([]);
   const [currentPly, setCurrentPly] = useState<number>(0);
   const [gameStatus, setGameStatus] = useState<GameStatus>(chessRef.current.getGameStatus());
+  const [recognizedOpening, setRecognizedOpening] = useState<OpeningRecognitionResult | undefined>(undefined);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   // Promotion Dialog State
@@ -59,6 +62,11 @@ export const InteractiveChessArena: React.FC = () => {
     setHistorySnapshots(snaps);
     setCurrentPly(snaps.length);
     setGameStatus(chessRef.current.getGameStatus());
+
+    const moves = snaps.map((s) => s.san);
+    const epd = chessRef.current.getEpd();
+    const recognized = openingDatabase.recognize(moves, epd);
+    setRecognizedOpening(recognized);
 
     if (moveHighlight) {
       setLastMove(moveHighlight);
@@ -127,11 +135,14 @@ export const InteractiveChessArena: React.FC = () => {
 
     if (ply === 0) {
       setLastMove(undefined);
+      setRecognizedOpening(undefined);
     } else {
       const snap = historySnapshots.find((s) => s.ply === ply);
       if (snap) {
         setLastMove([snap.from as Key, snap.to as Key]);
       }
+      const activeMoves = historySnapshots.slice(0, ply).map((s) => s.san);
+      setRecognizedOpening(openingDatabase.recognize(activeMoves));
     }
   };
 
@@ -234,6 +245,7 @@ export const InteractiveChessArena: React.FC = () => {
               status={gameStatus}
               isViewingHistory={isViewingHistory}
               historyPly={currentPly}
+              recognizedOpening={recognizedOpening}
             />
 
             {/* Chessground Board */}
