@@ -8,25 +8,28 @@
 ---
 
 ## 2. Resource Verification Status (Milestone 0)
-
-| Resource | Package / Source | Version | License | Test Status | Verified Capabilities |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Chess.js** | `chess.js` | `^1.0.0-beta.6` | BSD-2-Clause | **PASSED (10/10)** | Legal move validation, en passant, kingside/queenside castling, castling through/out of check blocked, promotion (`a8=Q+`), checkmate detection, stalemate detection, legal destination mapping. |
-| **Chessground** | `chessground` | `^9.1.1` | GPL-3.0 | **PASSED (2/2)** | Board rendering, touch & drag events, legal move destination highlighting, turn flipping, dynamic arrows/circles overlay (`drawable.shapes`). |
-| **Stockfish** | `stockfish.js` | `^10.0.2` (WASM) | GPL-3.0 | **PASSED (3/3)** | WebAssembly engine binary in `public/engine/`, Web Worker communication via UCI protocol, centipawn evaluations, forced mate (`#N`) parsing, PV lines extraction. |
-| **Lichess** | `explorer.lichess.ovh/masters` | REST Public API | CC0 / Free | **PASSED (4/4)** | Query master game stats (1,368,125+ games verified for 1.e4), win/draw/loss percentages, move frequency, normalized FEN transposition detection, token-bucket rate limiter. |
-| **Dexie.js** | `dexie` | `^4.0.1` | Apache-2.0 | **PASSED (4/4)** | IndexedDB table creation (`savedPositions`, `repertoires`, `lichessCache`), position saving, queries, offline cache retrieval (0 network requests). |
-
-**Total Integration Tests:** **23 PASSED, 0 FAILED** (Automated runner: `run-all-integration-tests.ts`).
-**Production Build:** **SUCCESS** (`tsc && vite build` completed in 21.9s, bundle size: 109.1 kB gzip).
+* **Chess.js (`1.4.0` / BSD-2-Clause):** Fully verified rules engine, FEN/PGN, legal move calculation.
+* **Chessground (`9.2.1` / GPL-3.0):** Native board viewport, drag/drop, touch events, coordinates, arrows.
+* **Stockfish WASM (`10.0.2` / GPL-3.0):** WebAssembly engine binary verified in `public/engine/stockfish.wasm` with `\0asm` magic header.
+* **Lichess API & Cache:** Lichess Masters Explorer queries verified with token-bucket limiter and Dexie caching.
+* **Dexie.js (`4.0.1` / Apache-2.0):** Persistent IndexedDB storage verified.
 
 ---
 
 ## 3. Milestones Roadmap
 
 - [x] **Milestone 0: Resource Integration & Verification Suite**
-- [ ] **Phase 1: Interactive Board & Controls** (Promotion dialog, sound sprites, move history tree, keyboard controls, responsive layout).
-- [ ] **Phase 2: Local Stockfish Engine & Evaluation Bar** (Continuous evaluation, multi-PV lines, depth controls, blunder detector).
+- [x] **Phase 1 (Prompt 7): Interactive Chessboard & Controls Engine**
+  - [x] Full standard 8×8 board with all 32 pieces in initial position.
+  - [x] Authoritative rules engine powered by `chess.js` (turns, legal moves, castling, en passant, promotion, checkmate, stalemate, draws).
+  - [x] Interactive pawn promotion modal with Queen, Rook, Bishop, Knight choices.
+  - [x] Board controls (New game, Reset, Undo, Redo with stack branch handling, Flip board, Copy FEN, Copy PGN, Load FEN, Load PGN).
+  - [x] Numbered move history table (SAN) with step-by-step history navigation (First, Prev, Next, Last, and click-to-move).
+  - [x] Dynamic Game Status Badge (Turn indicator, Check, Checkmate, Draws, Fullmove & halfmove count).
+  - [x] Responsive layout for mobile and desktop with zero horizontal overflow.
+  - [x] Dark and Light theme toggle support.
+  - [x] 65-point comprehensive integration test suite passing with 100% success rate.
+- [ ] **Phase 2: Local Stockfish Engine & Evaluation Bar** (Continuous evaluation, multi-PV candidate lines, depth controls, blunder detector).
 - [ ] **Phase 3: Opening Encyclopedia & Variation Explorer** (Curated ECO A00–E99 taxonomy, plans, traps, transpositions).
 - [ ] **Phase 4: Opening Statistics Dashboard** (Lichess master/player database stats, rating filters, win percentage charts).
 - [ ] **Phase 5: Personal Repertoire Builder** (White & Black repertoires, custom notes, PGN import/export, Dexie persistence).
