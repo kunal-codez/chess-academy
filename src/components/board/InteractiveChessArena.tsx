@@ -12,17 +12,30 @@ import { LoadPositionModal } from './LoadPositionModal.tsx';
 import { OpeningExplorerPanel } from '../explorer/OpeningExplorerPanel.tsx';
 import { RepertoirePanel } from '../repertoire/RepertoirePanel.tsx';
 import { TrainerPanel } from '../training/TrainerPanel.tsx';
+import { AboutModal } from '../common/AboutModal.tsx';
 import { EvaluationBar } from '../engine/EvaluationBar.tsx';
 import { EngineAnalysisPanel } from '../engine/EngineAnalysisPanel.tsx';
 import { openingDatabase } from '../../services/OpeningDatabaseService.ts';
 import { stockfishEngine } from '../../services/StockfishService.ts';
 import { repertoireService } from '../../services/RepertoireService.ts';
 import { drillSession } from '../../services/DrillSessionService.ts';
+import { evaluateKeyboardShortcut, isInputFocused } from '../../utils/keyboardShortcuts.ts';
 import type { DrillSessionState } from '../../services/DrillSessionService.ts';
 import type { EngineEvaluationState } from '../../services/StockfishService.ts';
 import type { OpeningRecognitionResult, OpeningRecord } from '../../types/opening.types.ts';
 import type { RepertoireLine } from '../../types/repertoire.types.ts';
-import { Sun, Moon, BookOpen, History as HistoryIcon, Bookmark, GraduationCap } from 'lucide-react';
+import {
+  Sun,
+  Moon,
+  BookOpen,
+  History as HistoryIcon,
+  Bookmark,
+  GraduationCap,
+  Info,
+  Download,
+  Wifi,
+  WifiOff
+} from 'lucide-react';
 
 export const InteractiveChessArena: React.FC = () => {
   const chessRef = useRef<ChessService>(new ChessService());
@@ -59,6 +72,51 @@ export const InteractiveChessArena: React.FC = () => {
   // Load FEN / PGN Modal State
   const [loadModalOpen, setLoadModalOpen] = useState(false);
   const [loadModalTab, setLoadModalTab] = useState<'fen' | 'pgn'>('fen');
+
+  // About & License Modal State
+  const [aboutModalOpen, setAboutModalOpen] = useState(false);
+
+  // Online / Offline & PWA Install State
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine ?? true : true);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+
+  // Listen for online/offline events
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Listen for beforeinstallprompt event
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    const handleAppInstalled = () => {
+      setDeferredInstallPrompt(null);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredInstallPrompt(null);
+    }
+  };
 
   // Convert chess.js legal dests to Chessground Key map
   const updateLegalDests = useCallback(() => {
@@ -309,6 +367,42 @@ export const InteractiveChessArena: React.FC = () => {
     setOrientation((prev) => (prev === 'white' ? 'black' : 'white'));
   };
 
+  // Keyboard Shortcuts (Arrow navigation, Home/End, F to flip)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isInput = isInputFocused(e.target);
+      const isModalOpen = pendingPromotion !== null || loadModalOpen || aboutModalOpen;
+      const action = evaluateKeyboardShortcut(e.key, isInput, isModalOpen, isDrilling);
+
+      if (!action) return;
+
+      e.preventDefault();
+
+      switch (action) {
+        case 'prev':
+          if (currentPly > 0) handleSelectPly(currentPly - 1);
+          break;
+        case 'next':
+          if (currentPly < historySnapshots.length) handleSelectPly(currentPly + 1);
+          break;
+        case 'first':
+          handleSelectPly(0);
+          break;
+        case 'last':
+          handleSelectPly(historySnapshots.length);
+          break;
+        case 'flip':
+          handleFlip();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [pendingPromotion, loadModalOpen, aboutModalOpen, isDrilling, currentPly, historySnapshots.length]);
+
   const handleLoadFen = (newFen: string) => {
     const res = chessRef.current.load(newFen);
     if (res.success) {
@@ -406,15 +500,62 @@ export const InteractiveChessArena: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Top Header Bar */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold tracking-tight">Interactive Board</h2>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight">Chess Opening Academy</h1>
+              {isOnline ? (
+                <span
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  title="Application assets and Stockfish WASM cached for offline use"
+                >
+                  <Wifi size={11} />
+                  <span>Offline Ready</span>
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  title="Operating 100% offline from local cache"
+                >
+                  <WifiOff size={11} />
+                  <span>Offline Mode</span>
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-400">
-              Legal move validation • FEN/PGN • Castling • En Passant • History Navigation
+              Interactive Board • Opening Explorer • Stockfish WASM • Personal Repertoires • SRS Drill Mode
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* Install App Button (Visible when PWA install prompt is available) */}
+            {deferredInstallPrompt && (
+              <button
+                onClick={handleInstallApp}
+                className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm transition"
+                aria-label="Install App as PWA"
+                title="Install Chess Opening Academy to your device"
+              >
+                <Download size={14} />
+                <span>Install App</span>
+              </button>
+            )}
+
+            {/* About & Licenses Modal Button */}
+            <button
+              onClick={() => setAboutModalOpen(true)}
+              className={`p-2 rounded-lg border text-xs flex items-center gap-1.5 transition ${
+                theme === 'dark'
+                  ? 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                  : 'bg-white border-slate-300 text-slate-700 hover:text-slate-950'
+              }`}
+              aria-label="Open About and Licenses dialog"
+              title="About & Licenses"
+            >
+              <Info size={15} />
+              <span className="hidden sm:inline">About</span>
+            </button>
+
             {/* Theme Toggle */}
             <button
               onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
@@ -423,6 +564,7 @@ export const InteractiveChessArena: React.FC = () => {
                   ? 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
                   : 'bg-white border-slate-300 text-slate-700 hover:text-slate-950'
               }`}
+              aria-label="Toggle Light/Dark Theme"
               title="Toggle Light/Dark Theme"
             >
               {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
@@ -681,6 +823,13 @@ export const InteractiveChessArena: React.FC = () => {
         onClose={() => setLoadModalOpen(false)}
         onLoadFen={handleLoadFen}
         onLoadPgn={handleLoadPgn}
+      />
+
+      {/* About & Licenses Modal */}
+      <AboutModal
+        isOpen={aboutModalOpen}
+        onClose={() => setAboutModalOpen(false)}
+        theme={theme}
       />
     </div>
   );

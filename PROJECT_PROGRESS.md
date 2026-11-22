@@ -1,9 +1,10 @@
 # Chess Opening Academy — Project Progress & Milestone Tracker
 
 ## 1. Project Overview & Rules
+* **Version:** **v1.0.0 (Production Release)**
 * **Budget Constraint:** Strictly **₹0** (no paid subscriptions, APIs, hosting, databases, or AI tokens).
 * **Licensing:** GPL-3.0 (aligned with Chessground and Stockfish).
-* **Architecture:** Offline-First PWA (React + TypeScript + Vite + Tailwind CSS + Dexie.js IndexedDB + Stockfish Web Worker).
+* **Architecture:** Offline-First PWA (React + TypeScript + Vite + Tailwind CSS + Dexie.js IndexedDB + Stockfish Web Worker + Workbox SW).
 
 ---
 
@@ -13,10 +14,11 @@
 * **Stockfish WASM (`10.0.2` / GPL-3.0):** WebAssembly engine binary verified in `public/engine/stockfish.wasm` with `\0asm` magic header and single-threaded Worker loader `stockfish.wasm.js` (with `stockfish.js` fallback).
 * **Lichess Opening Classification Dataset:** 3,865 opening records across 500 ECO codes (A00–E99) bundled locally (CC0 Public Domain).
 * **Dexie.js (`4.0.1` / Apache-2.0):** Persistent IndexedDB storage with version 4 schema (`personalRepertoires`, `repertoireLines`, `lineTrainingProgress`, `openings`, `savedPositions`, `repertoires`, and `lichessCache`).
+* **PWA & Workbox (`0.20.5` / MIT):** Service Worker precaching 23 runtime assets (4.9 MB) with 5 MB per-file ceiling and standalone installability.
 
 ---
 
-## 3. Milestones Roadmap
+## 3. Milestones Roadmap (100% Complete)
 
 - [x] **Milestone 0: Resource Integration & Verification Suite**
 - [x] **Phase 1 (Prompt 7): Interactive Chessboard & Controls Engine**
@@ -74,8 +76,14 @@
   - [x] Two-level hint engine (Level 1: source square highlight; Level 2: full move arrow).
   - [x] Engine spoiler protection (Stockfish engine stopped, evaluation bar and arrows suppressed).
   - [x] Interactive Trainer UI (`TrainerPanel.tsx`) integrated into `InteractiveChessArena.tsx` with Pre-Drill dashboard, Active Drill HUD, and Session Summary.
-  - [x] 60-point automated integration test suite (`repertoire-trainer.test.ts`), bringing total automated checks to **441 PASSED, 0 FAILED**.
-- [ ] **Phase 7 (Prompt 13): Offline PWA Installability & Final Production Polish (v1.0 Release)**
-  - Service Worker offline caching via `vite-plugin-pwa` and Workbox.
-  - Web App Manifest, app icons, and offline fallback strategy.
-  - Lighthouse PWA compliance and v1.0 release packaging.
+  - [x] 60-point automated integration test suite (`repertoire-trainer.test.ts`).
+- [x] **Phase 7 (Prompt 13): Offline PWA Installability & Final Production Polish (v1.0 Release)**
+  - [x] Web App Manifest (`manifest.webmanifest`) with standalone display mode and theme colors.
+  - [x] Local binary app icons in `public/icons/` (`icon-192.png`, `icon-512.png`, `maskable-512.png`, and `favicon.svg`).
+  - [x] Workbox Service Worker precaching 23 assets (4.9 MB) with 5 MB ceiling for large dataset and WASM files.
+  - [x] Online/Offline status indicator ("Offline Ready" / "Offline Mode").
+  - [x] "Install App" button in header listening to `beforeinstallprompt`.
+  - [x] Safe keyboard shortcuts (`ArrowLeft`, `ArrowRight`, `Home`, `End`, `F`) with input, modal, and drill mode guards.
+  - [x] About / Licenses & Storage modal with local database statistics and open-source attributions.
+  - [x] Responsive layout verified for 360px+ mobile viewports.
+  - [x] 52-point automated release test suite (`pwa-release.test.ts`), bringing total automated checks to **493 PASSED, 0 FAILED**.
