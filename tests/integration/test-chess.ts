@@ -1,4 +1,4 @@
-import { ChessService } from './src/services/ChessService.ts';
+import { ChessService } from '../../src/services/ChessService.ts';
 
 console.log('Testing ChessService...');
 const chess = new ChessService();

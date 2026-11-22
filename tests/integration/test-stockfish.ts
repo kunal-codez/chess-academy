@@ -1,4 +1,4 @@
-import { StockfishService } from './src/services/StockfishService.ts';
+import { StockfishService } from '../../src/services/StockfishService.ts';
 
 function testStockfishParser() {
   console.log('--- STOCKFISH UCI ENGINE INTEGRATION TEST ---');

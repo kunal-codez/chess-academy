@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { db } from './src/db/db.ts';
+import { db } from '../../src/db/db.ts';
 
 async function testDatabase() {
   console.log('--- DEXIE.JS DATABASE INTEGRATION TEST ---');

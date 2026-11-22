@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { StockfishService } from '../services/StockfishService';
+import { StockfishService } from '../../src/services/StockfishService.ts';
 
 describe('Stockfish UCI Protocol & Output Parsing Verification', () => {
   it('should accurately parse UCI centipawn score and PV line', () => {

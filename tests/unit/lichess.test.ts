@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LichessService } from '../services/LichessService';
+import { LichessService } from '../../src/services/LichessService.ts';
 
 describe('Lichess Opening Data & Transposition Engine Verification', () => {
   it('should normalize FEN strings by stripping halfmove and fullmove counters', () => {

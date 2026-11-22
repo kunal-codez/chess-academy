@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ChessService } from '../services/ChessService';
+import { ChessService } from '../../src/services/ChessService.ts';
 
 describe('Chess.js Rules & Legal Move Engine Verification', () => {
   it('should validate opening legal moves from standard initial position', () => {

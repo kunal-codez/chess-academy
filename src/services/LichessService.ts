@@ -1,5 +1,5 @@
-import { db } from '../db/db';
-import type { LichessCacheEntry } from '../db/db';
+import { db } from '../db/db.ts';
+import type { LichessCacheEntry } from '../db/db.ts';
 
 export interface LichessMoveStats {
   san: string;

@@ -3,10 +3,12 @@ import { Chessground } from 'chessground';
 import { Api } from 'chessground/api';
 import { Config } from 'chessground/config';
 import { Key } from 'chessground/types';
-import { ChessService } from '../services/ChessService';
-import { StockfishService, StockfishEvaluation } from '../services/StockfishService';
-import { LichessService, LichessExplorerResult } from '../services/LichessService';
-import { db } from '../db/db';
+import { ChessService } from '../services/ChessService.ts';
+import { StockfishService } from '../services/StockfishService.ts';
+import type { StockfishEvaluation } from '../services/StockfishService.ts';
+import { LichessService } from '../services/LichessService.ts';
+import type { LichessExplorerResult } from '../services/LichessService.ts';
+import { db } from '../db/db.ts';
 import { RotateCw, Undo, Save, Zap, Database, Globe } from 'lucide-react';
 
 export const ChessboardTest: React.FC = () => {

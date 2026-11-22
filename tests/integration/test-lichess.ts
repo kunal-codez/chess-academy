@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { LichessService } from './src/services/LichessService.ts';
+import { LichessService } from '../../src/services/LichessService.ts';
 
 async function testLichessIntegration() {
   console.log('--- LICHESS OPENING EXPLORER INTEGRATION TEST ---');

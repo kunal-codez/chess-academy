@@ -1,4 +1,4 @@
-import { ChessService } from './src/services/ChessService.ts';
+import { ChessService } from '../../src/services/ChessService.ts';
 
 function testChessgroundConfig() {
   console.log('--- CHESSGROUND CONFIGURATION & STATE ENGINE TEST ---');
