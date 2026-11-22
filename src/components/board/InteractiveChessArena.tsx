@@ -10,13 +10,16 @@ import { GameStatusBadge } from './GameStatusBadge.tsx';
 import { PromotionModal } from './PromotionModal.tsx';
 import { LoadPositionModal } from './LoadPositionModal.tsx';
 import { OpeningExplorerPanel } from '../explorer/OpeningExplorerPanel.tsx';
+import { RepertoirePanel } from '../repertoire/RepertoirePanel.tsx';
 import { EvaluationBar } from '../engine/EvaluationBar.tsx';
 import { EngineAnalysisPanel } from '../engine/EngineAnalysisPanel.tsx';
 import { openingDatabase } from '../../services/OpeningDatabaseService.ts';
 import { stockfishEngine } from '../../services/StockfishService.ts';
+import { repertoireService } from '../../services/RepertoireService.ts';
 import type { EngineEvaluationState } from '../../services/StockfishService.ts';
 import type { OpeningRecognitionResult, OpeningRecord } from '../../types/opening.types.ts';
-import { Sun, Moon, BookOpen, History as HistoryIcon } from 'lucide-react';
+import type { RepertoireLine } from '../../types/repertoire.types.ts';
+import { Sun, Moon, BookOpen, History as HistoryIcon, Bookmark } from 'lucide-react';
 
 export const InteractiveChessArena: React.FC = () => {
   const chessRef = useRef<ChessService>(new ChessService());
@@ -33,7 +36,7 @@ export const InteractiveChessArena: React.FC = () => {
   const [gameStatus, setGameStatus] = useState<GameStatus>(chessRef.current.getGameStatus());
   const [recognizedOpening, setRecognizedOpening] = useState<OpeningRecognitionResult | undefined>(undefined);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [sidebarTab, setSidebarTab] = useState<'explorer' | 'history'>('explorer');
+  const [sidebarTab, setSidebarTab] = useState<'explorer' | 'history' | 'repertoire'>('explorer');
 
   // Stockfish Engine State
   const [isEngineEnabled, setIsEngineEnabled] = useState<boolean>(false);
@@ -268,6 +271,18 @@ export const InteractiveChessArena: React.FC = () => {
     }
   };
 
+  const handleLoadRepertoireLine = (line: RepertoireLine) => {
+    const res = chessRef.current.loadMoveSequence(line.movesSan);
+    if (res.success) {
+      repertoireService.getRepertoire(line.repertoireId).then((rep) => {
+        if (rep) {
+          setOrientation(rep.color);
+        }
+      });
+      syncState();
+    }
+  };
+
   const handleReturnToBook = (ply: number) => {
     const res = chessRef.current.truncateToPly(ply);
     if (res.success) {
@@ -437,7 +452,7 @@ export const InteractiveChessArena: React.FC = () => {
             >
               <button
                 onClick={() => setSidebarTab('explorer')}
-                className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
                   sidebarTab === 'explorer'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : theme === 'dark'
@@ -446,12 +461,26 @@ export const InteractiveChessArena: React.FC = () => {
                 }`}
               >
                 <BookOpen size={14} />
-                <span>Opening Explorer</span>
+                <span>Explorer</span>
+              </button>
+
+              <button
+                onClick={() => setSidebarTab('repertoire')}
+                className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                  sidebarTab === 'repertoire'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : theme === 'dark'
+                    ? 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Bookmark size={14} />
+                <span>Repertoire</span>
               </button>
 
               <button
                 onClick={() => setSidebarTab('history')}
-                className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
                   sidebarTab === 'history'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : theme === 'dark'
@@ -460,7 +489,7 @@ export const InteractiveChessArena: React.FC = () => {
                 }`}
               >
                 <HistoryIcon size={14} />
-                <span>Move History</span>
+                <span>Moves</span>
                 <span
                   className={`ml-1 text-[10px] px-1.5 py-0.2 rounded-full ${
                     sidebarTab === 'history'
@@ -475,8 +504,8 @@ export const InteractiveChessArena: React.FC = () => {
               </button>
             </div>
 
-            {/* Tab Body: Opening Explorer Panel or Move History Table */}
-            {sidebarTab === 'explorer' ? (
+            {/* Tab Body: Opening Explorer Panel, Repertoire Builder, or Move History */}
+            {sidebarTab === 'explorer' && (
               <OpeningExplorerPanel
                 currentFen={fen}
                 currentEpd={chessRef.current.getEpd()}
@@ -489,7 +518,20 @@ export const InteractiveChessArena: React.FC = () => {
                 onSelectPly={handleSelectPly}
                 theme={theme}
               />
-            ) : (
+            )}
+
+            {sidebarTab === 'repertoire' && (
+              <RepertoirePanel
+                currentFen={fen}
+                currentEpd={chessRef.current.getEpd()}
+                playedMovesSan={historySnapshots.slice(0, currentPly).map((s) => s.san)}
+                currentPly={currentPly}
+                onLoadLine={handleLoadRepertoireLine}
+                theme={theme}
+              />
+            )}
+
+            {sidebarTab === 'history' && (
               <div className="flex-1 min-h-[300px]">
                 <MoveHistory
                   snapshots={historySnapshots}

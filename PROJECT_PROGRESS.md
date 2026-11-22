@@ -12,7 +12,7 @@
 * **Chessground (`9.2.1` / GPL-3.0):** Native board viewport, drag/drop, touch events, coordinates, arrows (`autoShapes`).
 * **Stockfish WASM (`10.0.2` / GPL-3.0):** WebAssembly engine binary verified in `public/engine/stockfish.wasm` with `\0asm` magic header and single-threaded Worker loader `stockfish.wasm.js` (with `stockfish.js` fallback).
 * **Lichess Opening Classification Dataset:** 3,865 opening records across 500 ECO codes (A00–E99) bundled locally (CC0 Public Domain).
-* **Dexie.js (`4.0.1` / Apache-2.0):** Persistent IndexedDB storage with `openings`, `savedPositions`, `repertoires`, and `lichessCache` tables.
+* **Dexie.js (`4.0.1` / Apache-2.0):** Persistent IndexedDB storage with version 3 schema (`personalRepertoires`, `repertoireLines`, `openings`, `savedPositions`, `repertoires`, and `lichessCache`).
 
 ---
 
@@ -49,9 +49,23 @@
   - [x] MultiPV Engine Analysis panel (`EngineAnalysisPanel.tsx`) with depth presets, 1-3 lines, and one-click play.
   - [x] Recommended move arrow overlay on Chessground (`autoShapes`).
   - [x] Debounce and searchId race-condition protection.
-  - [x] 64-point automated test suite (`stockfish-evaluation.test.ts`), bringing total automated checks to **307 PASSED, 0 FAILED**.
-- [ ] **Phase 5: Opening Statistics Dashboard** (Lichess master/player database stats, rating filters, win percentage charts).
-- [ ] **Phase 6: Personal Repertoire Builder** (White & Black repertoires, custom notes, PGN import/export, Dexie persistence).
-- [ ] **Phase 7: Interactive Training Arena** (Spaced Repetition SM-2, guess the move, memory recall, blunder repetition).
-- [ ] **Phase 8: Structured Lessons & Performance Dashboard** (Curated courses, quizzes, mastery metrics).
-- [ ] **Phase 9: Offline PWA & Final Polish** (Workbox service worker, Android installability, audit).
+  - [x] 64-point automated test suite (`stockfish-evaluation.test.ts`).
+- [x] **Phase 5 (Prompt 11): Personal Repertoire Builder & Saved Opening Lines**
+  - [x] Dexie.js schema upgrade to version 3 (`personalRepertoires`, `repertoireLines`).
+  - [x] White & Black repertoire management with custom titles, descriptions, and color filters.
+  - [x] Move sequence validation via `chess.js` (strict rejection of illegal moves or corrupt notation).
+  - [x] Duplicate move sequence protection per repertoire.
+  - [x] Auto-detection of opening title and official ECO code via `OpeningDatabaseService`.
+  - [x] Line annotations (custom notes, tags) and inline editing.
+  - [x] Cascade deletion of associated lines on repertoire removal.
+  - [x] Bidirectional board sync: "Load on Board" loads line and sets board orientation to match repertoire color.
+  - [x] Repertoire JSON export & import round-trip with collision prevention.
+  - [x] Multi-line and single-line standard PGN export with full annotations.
+  - [x] Interactive Repertoire Builder panel (`RepertoirePanel.tsx`) integrated in `InteractiveChessArena.tsx`.
+  - [x] 74-point automated integration test suite (`repertoire-builder.test.ts`), bringing total automated checks to **381 PASSED, 0 FAILED**.
+- [ ] **Phase 6 (Prompt 12): Spaced Repetition (SRS) Drill & Training Engine**
+  - Memory recall training reading directly from saved repertoires.
+  - Spaced Repetition scheduling algorithm (SM-2 / Leitner box).
+  - "Play the Next Move" drill mode with hints and blunder flags.
+- [ ] **Phase 7: Structured Lessons & Performance Dashboard**
+- [ ] **Phase 8: Offline PWA & Final Polish**

@@ -7,74 +7,81 @@
 ---
 
 ## 1. Current Status Summary
-**Prompt 10 (Local Stockfish WebAssembly Engine and Position Evaluation) is 100% COMPLETE.**
+**Prompt 11 (Personal Repertoire Builder and Saved Opening Lines) is 100% COMPLETE.**
 
-The local Stockfish WebAssembly engine, isolated Web Worker communication via UCI protocol, real-time position evaluation, dynamic Evaluation Bar, and MultiPV Engine Analysis panel have been built, rigorously tested, and integrated with the interactive board.
+The personal repertoire builder and local persistence engine have been implemented, rigorously tested, and integrated with the interactive board. Players can now create and manage dedicated White and Black opening repertoires, save legal move sequences directly from the board or Opening Explorer, customize line names, tags, and strategic notes, prevent duplicate lines, synchronize lines directly onto the board with automatic perspective matching, and export/import repertoires via standard JSON and PGN formats.
 
-The application now provides real-time local engine analysis with zero cloud calls, zero external API keys, zero subscriptions, and complete offline capability.
+The application persists all repertoire data locally in IndexedDB via Dexie.js with zero cloud calls, zero external API keys, zero subscriptions, and complete offline capability.
 
 ---
 
-## 2. Completed Work (Prompt 10)
+## 2. Completed Work (Prompt 11)
 
-### A. Local WebAssembly Engine Integration (`public/engine/`)
-* **Binaries Verified:**
-  * `stockfish.wasm`: 64-bit POPCNT WebAssembly binary (558 kB) with `\0asm` magic header.
-  * `stockfish.wasm.js`: WebAssembly loader running Stockfish in Web Worker.
-  * `stockfish.js`: Asm.js single-file pure JavaScript engine (1.58 MB) providing automatic fallback.
-* **Zero Security Header Crashes:** Both engine builds are single-threaded and do NOT require `SharedArrayBuffer` or COOP/COEP cross-origin isolation headers. They execute reliably across all browsers and environments.
+### A. Dexie.js Schema Migration (`src/db/db.ts`)
+* **Schema Upgrade to Version 3:**
+  * Added `personalRepertoires: 'id, color, name, createdAt, updatedAt'` table.
+  * Added `repertoireLines: 'id, repertoireId, eco, finalEpd, finalFen, createdAt, updatedAt'` table.
+  * Full preservation of existing tables (`savedPositions`, legacy `repertoires`, `openings`, `metadata`, `lichessCache`), preventing regressions in previous test suites.
 
-### B. Stockfish UCI Engine Service (`src/services/StockfishService.ts`)
-* **Dedicated Web Worker Isolation:** Engine computation runs strictly in a background worker thread, ensuring the UI thread, piece dragging, and board animations remain at 60 FPS.
-* **Full UCI Lifecycle Management:** Handles `uci` -> `uciok` -> `setoption MultiPV` -> `isready` -> `readyok` handshakes cleanly.
-* **Debounce & Race-Condition / Stale-Evaluation Protection:**
-  * Uses a 120ms debounce when stepping rapidly through game moves.
-  * Employs internal `currentSearchId` tracking and immediate `stop` commands to guarantee that late UCI `info` or `bestmove` messages from earlier positions are strictly discarded.
-* **Configurable Controls:** Supports dynamic depth adjustments (`setDepth(depth)`: 12, 16, 20) and MultiPV line configuration (`setMultiPv(lines)`: 1, 2, 3).
-* **Lazy Initialization:** The Web Worker is instantiated only when the user turns the Engine ON (or on demand), keeping initial page load overhead at 0%.
+### B. Repertoire Data Models (`src/types/repertoire.types.ts`)
+* Defined `Repertoire` interface (`id`, `name`, `color`, `description`, `createdAt`, `updatedAt`).
+* Defined `RepertoireLine` interface (`id`, `repertoireId`, `name`, `eco`, `movesSan`, `movesUci`, `finalFen`, `finalEpd`, `notes`, `tags`, `createdAt`, `updatedAt`).
+* Defined `RepertoireExportData` schema for JSON export/import portability with versioning.
 
-### C. Pure UCI Output Parser (`src/services/UciParser.ts`)
-* **Pure Module:** Fully decoupled with 0 DOM dependencies for robust unit testing.
-* **White-Perspective Normalization:** Converts side-to-move UCI scores into White's perspective (`turn === 'b' ? -score : score`), ensuring positive numbers always indicate White advantage and negative numbers Black advantage.
-* **Formatted Score Output:** Converts centipawns to pawns with 1 decimal place (`+0.5`, `-1.8`, `0.0`) and forced mate formatting (`M3`, `-M2`).
-* **Win Percentage & Evaluation Bar Curve:** Implements standard logistic winning model, clamping between 3% and 97% for non-mate positions and snapping to 100% or 0% on forced mate.
-* **UCI PV to SAN Conversion:** Uses `chess.js` against the evaluated FEN to convert UCI strings (`['e2e4', 'e7e5']`) into legal SAN (`['e4', 'e5']`) with numbered PGN formatting (`1. e4 e5 2. Nf3 Nc6` or `1... c5 2. Nf3`).
+### C. Repertoire Service Engine (`src/services/RepertoireService.ts`)
+* **Repertoire CRUD:** Create, read, update, delete, and filter by color (`white`, `black`, `all`).
+* **Cascade Deletion:** Deleting a repertoire automatically deletes all associated saved lines in a single Dexie transaction.
+* **Move Sequence Validation:** Uses `chess.js` to simulate each move, ensuring only 100% legal lines can be saved (rejects illegal moves, corrupt notations, or empty sequences).
+* **Duplicate Protection:** Prevents duplicate move sequences within the same repertoire by comparing normalized SAN sequences, returning an informative error while permitting identical sequences across different repertoires.
+* **Intelligent Auto-Naming & ECO Detection:** If a user saves a line without specifying a title, `RepertoireService` automatically calls `OpeningDatabaseService.recognize` to match the line against the 3,865-opening database and auto-populate the opening name and official ECO code.
+* **JSON Export & Import:** Full serialization and deserialization with UUID regeneration on import to prevent collision.
+* **Standard PGN Generation:** Generates valid multi-game or single-line PGN with `Event`, `Site`, `Date`, `White`, `Black`, `Result`, `ECO`, numbered movetext, and `{ commentary }`.
 
-### D. Evaluation Bar Component (`src/components/engine/EvaluationBar.tsx`)
-* **Responsive Height:** Positioned vertically alongside the board, matching chessboard height.
-* **Orientation-Aware:** Automatically inverts fill direction when the board is flipped (White at bottom in White view, Black at bottom in Black view).
-* **High Contrast Typography:** Formatted score badge positioned dynamically inside the dominant player's section.
-* **Smooth CSS Transitions:** 300ms ease-out height animation on evaluation updates.
-* **Neutral Inactive State:** Displays a subtle 50/50 split with "OFF" badge when engine is disabled.
+### D. Visual Repertoire Panel (`src/components/repertoire/RepertoirePanel.tsx`)
+* **Repertoire Selector & Color Filter:** Quick tabs for All, White, and Black repertoires with line counts.
+* **Repertoire Management Modals:** Create new repertoires with custom color and description, edit metadata, or delete with confirmation.
+* **Save Current Line Modal:**
+  * Active board move sequence preview and ply count.
+  * Auto-detected opening name and ECO badge.
+  * Input fields for custom variation title, comma-separated tags, and strategic notes.
+  * Instant duplicate check and error feedback.
+* **Saved Lines List:**
+  * Line name and official ECO badge (e.g. `B90`, `C65`).
+  * Formatted move sequence.
+  * User tags and strategic notes.
+  * "Load on Board" button with green play indicator.
+  * Inline note/name editing modal.
+  * Delete line button.
+  * Copy PGN to clipboard button.
+* **Export / Import Controls:** One-click JSON file download and file upload parser with toast alerts.
 
-### E. Engine Analysis Controls & MultiPV Panel (`src/components/engine/EngineAnalysisPanel.tsx`)
-* **Master Engine ON/OFF Toggle:** Clear power button with active/idle indicator.
-* **Depth Presets:** Quick (12), Standard (16), Deep (20).
-* **MultiPV Lines Selector:** 1 Line, 2 Lines, 3 Lines.
-* **Best Move Arrow Toggle:** Controls native Chessground autoShape arrow (`drawable.autoShapes`).
-* **Live Status Indicator:** Spinner and depth progress display (`Depth 14/16`, `Initializing WASM...`, `Depth 16 reached`).
-* **Interactive MultiPV Cards:** Each line displays rank (`#1`, `#2`), score pill (green/rose/purple), clickable move button to play the line on the board, NPS stats, and formatted PGN continuation.
+### E. Arena Integration (`src/components/board/InteractiveChessArena.tsx`)
+* Added 3-way sidebar navigation: `[Explorer]`, `[Repertoire]`, and `[Moves]`.
+* Wired `handleLoadRepertoireLine`: automatically loads the line into `ChessService`, sets board orientation to the repertoire's color, and syncs all board indicators.
 
 ---
 
 ## 3. Test Results
 
 ### Automated Integration Suite (`npm test`)
+* **Personal Repertoire Builder Suite (`repertoire-builder.test.ts`):** **74 PASSED, 0 FAILED**.
+  * Repertoire creation (White and Black, UUIDs, timestamps, color filtering).
+  * Saving valid lines with legal move replay, FEN/EPD computation, and auto-ECO/name detection.
+  * Duplicate move sequence protection per repertoire.
+  * Illegal move rejection (corrupted move notation, invalid king moves, empty sequences).
+  * Line editing, note updates, and tag persistence in IndexedDB.
+  * Single line deletion and cascade deletion on repertoire removal.
+  * Board synchronization with `ChessService` and `OpeningDatabaseService`.
+  * JSON export and import round-trip with zero ID collisions.
+  * Standard PGN export and 100% legal Chess.js PGN reparsing.
 * **Stockfish Evaluation Suite (`stockfish-evaluation.test.ts`):** **64 PASSED, 0 FAILED**.
-  * UCI `info` & `bestmove` parsing.
-  * White-perspective score normalization (White turn vs Black turn).
-  * Score formatting (centipawns and mate).
-  * Win percentage logistic curve and boundary clamping.
-  * UCI PV to SAN and PGN conversion (openings, Black moves, castling, promotions).
-  * `StockfishService` state and option updates.
-  * Real Stockfish binary execution in VM context (UCI handshake, depth search, `bestmove`).
 * **Opening Explorer Suite (`opening-explorer.test.ts`):** **103 PASSED, 0 FAILED**.
 * **Opening Database Suite (`opening-database.test.ts`):** **52 PASSED, 0 FAILED**.
 * **Chessboard & Controls Suite (`chessboard-controls.test.ts`):** **65 PASSED, 0 FAILED**.
 * **Resource Integration Suite (`run-all-integration-tests.ts`):** **23 PASSED, 0 FAILED**.
-* **Total Project Automated Checks:** **307 PASSED, 0 FAILED**.
+* **Total Project Automated Checks:** **381 PASSED, 0 FAILED**.
 * **TypeScript Compilation (`tsc`):** **0 errors**.
-* **Production Build (`vite build`):** Clean build in 22.2s. Code-split with `openings-data` chunk (229.2 kB gzip) and main app entry (88.9 kB gzip).
+* **Production Build (`vite build`):** Clean build in 23.0s. All assets successfully compiled into `dist/`.
 * **Zero External Calls / ₹0 Budget:** Verified 100% offline.
 
 ---
@@ -85,12 +92,12 @@ The application now provides real-time local engine analysis with zero cloud cal
 3. **Prompt 8:** Local chess opening database (3,865 records, 500 ECO codes A00–E99), IndexedDB persistence, recognition engine.
 4. **Prompt 9:** Opening Variation Tree engine (8,802 nodes), visual Opening Explorer panel, candidate continuations, transposition lookup, out-of-book recovery, bidirectional board sync.
 5. **Prompt 10:** Local Stockfish WebAssembly engine, Web Worker UCI service, White-perspective normalization, Evaluation Bar, best-move arrow, and MultiPV analysis panel.
+6. **Prompt 11:** Personal Repertoire Builder, Dexie.js v3 IndexedDB storage, duplicate protection, auto-ECO detection, JSON/PGN export/import, board synchronization, and 74 integration tests.
 
 ---
 
 ## 5. Next Development Phase
-* **Prompt 11: Opening Statistics Dashboard & Lichess Offline Database Exploration**
-  * Opening Explorer statistics visualization (win/draw/loss distribution, popularity).
-  * Rating tier filters (Masters, 2000+, 1800+, 1600+).
-  * Time control filters (Blitz, Rapid, Classical).
-  * Offline stats cache integration via IndexedDB (`lichessCache` table).
+* **Prompt 12: Spaced Repetition (SRS) Drill & Training Engine**
+  * Interactive recall training reading directly from saved personal repertoires.
+  * Spaced Repetition scheduling algorithm (SM-2 / Leitner box).
+  * "Play the Next Repertoire Move" drill mode with blunder feedback and hint engine.
