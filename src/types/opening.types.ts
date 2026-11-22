@@ -33,3 +33,24 @@ export interface OpeningSearchQuery {
   limit?: number;
   offset?: number;
 }
+
+export interface OpeningTreeNode {
+  san: string;                     // Move notation (e.g. "e4", empty string for root)
+  uci?: string;                    // UCI notation (e.g. "e2e4")
+  ply: number;                     // Half-move depth from starting position
+  epd: string;                     // Position EPD
+  openings: OpeningRecord[];       // Openings associated with / terminating at this node
+  ecoCodes: string[];              // Unique ECO codes represented in this branch
+  descendantCount: number;         // Total number of catalogued openings passing through or terminating in this branch
+  children: Map<string, OpeningTreeNode>; // Child moves indexed by SAN
+}
+
+export interface CandidateContinuation {
+  san: string;                     // Next move SAN (e.g. "c5")
+  uci?: string;                    // Next move UCI (e.g. "c7c5")
+  descendantCount: number;         // How many catalogued opening variations feature this continuation
+  ecoCodes: string[];              // Distinct ECO codes reached via this move
+  openingNames: string[];          // Names of major openings that continue with this move
+  sampleOpening?: OpeningRecord;   // Primary representative opening line
+  isTransposition?: boolean;       // Whether this continuation leads to or stems from a transposition
+}

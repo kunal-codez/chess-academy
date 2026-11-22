@@ -7,73 +7,79 @@
 ---
 
 ## 1. Current Status Summary
-**Prompt 8 (Chess Opening Database & ECO Classification System) is 100% COMPLETE.**
+**Prompt 9 (Opening Variation Tree and Visual Explorer) is 100% COMPLETE.**
 
-The local chess opening database and ECO recognition engine have been built, verified, and linked with the interactive board. 
+The Opening Variation Tree engine, interactive visual Opening Explorer panel, and bidirectional chessboard synchronization have been built, rigorously tested, and integrated with the authoritative `ChessService` and local 3,865-opening database.
 
-The dataset contains **3,865 opening records** covering **all 500 ECO codes (A00–E99)** without gaps. All moves are 100% legal chess.js sequences, indexed for O(1) retrieval, and equipped with exact matching, longest prefix matching, and EPD transposition recognition.
+The application now provides instantaneous candidate move exploration, descendant line ranking, deep branch traversal (e.g. Najdorf B90–B99), transposition continuation lookup, out-of-book recovery, and directory search with ECO volume filtering.
 
 ---
 
-## 2. Completed Work (Prompt 8)
+## 2. Completed Work (Prompt 9)
 
-### A. Data Sourcing & Verification
-* **Source:** Official [`lichess-org/chess-openings`](https://github.com/lichess-org/chess-openings) repository (DOI: `10.5281/zenodo.19608774`).
-* **Licence & Attribution:** CC0 1.0 Universal (Public Domain). "As a collection of facts, this data set is in the public domain. Considerable effort was spent curating and cleaning the data. Insofar as that qualifies for copyright, the work is released under the CC0 Public Domain Dedication."
-* **Compilation:** Downloaded and processed `a.tsv`, `b.tsv`, `c.tsv`, `d.tsv`, and `e.tsv`.
-* **Programmatic Coverage Audit:**
-  * **Total Records:** **3,865 opening records**.
-  * **ECO Codes:** **500 distinct ECO codes** (100 in Vol A, 100 in Vol B, 100 in Vol C, 100 in Vol D, 100 in Vol E). Zero missing ECO codes from A00 to E99.
-  * **Chess Correctness:** Every single PGN move sequence was simulated and validated through `chess.js` with **0 errors**.
+### A. Opening Variation Tree Engine (`src/services/OpeningTreeService.ts`)
+* **Trie Architecture:** Ingests all **3,865 opening records** from `openings.json` into a prefix tree comprising **8,802 unique nodes**.
+* **Precomputed Descendant Counts:** Every trie node tracks the exact count of catalogued opening lines passing through or branching from it. Initial position starts with all 20 legal first moves ranked (1.e4 with 2,032 lines, 1.d4 with 1,333 lines, 1.c4 with 202 lines, 1.Nf3 with 109 lines, 1.Nc3 with 29 lines, 1.f4 with 27 lines, etc.).
+* **EPD Transposition Index:** Replays nodes using standard chess rules during initialization, indexing **7,983 unique board EPDs** and identifying **590 transposing board states**. This allows instant candidate move retrieval regardless of whether a position was reached via canonical move order or alternative transpositions.
+* **Out-of-Book Recovery (`findDeepestBookPly`):** When arbitrary or uncatalogued moves are played, the engine walks backwards to pinpoint the exact ply and opening node where the game diverged from book theory.
 
-### B. Scalable Database & Data Model
-* **Structured Records (`src/types/opening.types.ts`):** Each record contains `id`, `eco`, `name`, `family`, `variation`, `subvariation`, `pgn`, `movesSan`, `movesUci`, `epd`, `fen`, `plyCount`, and `source`.
-* **Indexed Storage (`src/data/openings/`):**
-  * `eco-a.json` (823 records, Vol A)
-  * `eco-b.json` (781 records, Vol B)
-  * `eco-c.json` (1,250 records, Vol C)
-  * `eco-d.json` (644 records, Vol D)
-  * `eco-e.json` (367 records, Vol E)
-  * `openings.json` (3,865 complete unified dataset)
-* **IndexedDB Integration (`src/db/db.ts`):** `openings` table indexed by `id`, `eco`, `family`, `name`, `epd`, `plyCount`. Includes `seedOpenings()` with duplicate import prevention.
+### B. ChessService Engine Enhancements (`src/services/ChessService.ts`)
+* `makeSanMove(san: string)`: Executes a move directly from standard algebraic notation, records snapshots, verifies game status, and clears redo stack.
+* `loadMoveSequence(movesSan: string[])`: Validates and loads an entire array of SAN moves in sequence, reconstructing all half-move snapshots and FEN history.
+* `truncateToPly(ply: number)`: Truncates history back to an earlier ply and re-establishes board state, enabling seamless interactive branching from past positions.
 
-### C. Opening Recognition Engine (`OpeningDatabaseService.ts`)
-* **Exact Matching:** Matches full completed opening lines instantly.
-* **Longest Prefix Matching:** Detects the deepest matching opening variation when a game progresses beyond book theory (e.g., Najdorf English Attack at ply 11 when user has played 18 moves).
-* **EPD Transposition Engine:** Detects alternative move orders reaching identical chess positions (e.g., 1.c4 e6 2.d4 d5 transposing into Queen's Gambit Declined) and flags `transposition: true`.
-* **Divergence Guard:** Correctly classifies arbitrary/random move sequences as unrecognized rather than falsely matching a single initial move.
-* **Reactive Board Integration:** Automatically updates the recognized opening and ECO pill in `GameStatusBadge` as moves are played, stepped through, undone, or redone on the board.
+### C. Visual Opening Explorer Panel (`src/components/explorer/OpeningExplorerPanel.tsx`)
+* **Continuations Tab (Book Tree Explorer):**
+  * Position header displaying recognized opening, ECO pill, status badge (*In Book*, *Transposition*, or *Out of Book*), and played move breadcrumbs with click-to-ply support.
+  * Candidate continuation table showing move SAN, resulting line/variation, ECO tags, descendant variation count, and proportional line density indicator.
+  * Interactive play: Clicking any candidate row or its play button executes the move directly on the interactive board.
+  * Out-of-book state: When no continuations exist, renders an informative alert card showing the last recognized book position and a one-click button: `Return to Last Book Move (Ply X)`.
+* **Search & Browse Tab (Directory / ECO Explorer):**
+  * Substring search input matching opening names, variations, families, and ECO codes.
+  * ECO volume quick filters: All (3,865 lines), A (Flank & Irregular), B (Semi-Open & Sicilian), C (Open & French), D (Closed & Grünfeld), E (Indian Defenses).
+  * Direct "Load Line" action on every result card that loads the entire opening line onto the board with full move history.
 
-### D. Search & Retrieval Service
-* **Name Search:** Fast, case-insensitive substring search matching name, family, variation, or subvariation.
-* **ECO Search:** Exact code (`B90`), prefix code (`C1`), and range queries (`B90`–`B99`).
-* **Family Search:** Retrieves all variations belonging to a specific opening family (e.g. `Sicilian Defense`, `French Defense`).
-* **Continuations / Candidate Lines:** Returns next potential opening lines branching from the current board position.
+### D. Bidirectional Board Integration (`src/components/board/InteractiveChessArena.tsx`)
+* Tabbed sidebar switcher allowing users to toggle effortlessly between **Opening Explorer** and **Move History**.
+* Real-time synchronization: Board moves reactively update Explorer continuations; clicking Explorer continuations animates and moves pieces on the board; undo/redo and ply selection immediately refresh available candidate continuations.
 
 ---
 
 ## 3. Test Results
 
 ### Automated Integration Suite (`npm test`)
+* **Opening Explorer Suite (`opening-explorer.test.ts`):** **103 PASSED, 0 FAILED**.
+  * Trie structure & 8,802-node integrity.
+  * Root continuations & descending descendant count verification.
+  * Deep variation traversal (Sicilian Najdorf B90–B99 candidate lines).
+  * Move sequence loading and snapshot generation in `ChessService`.
+  * EPD transposition continuation matching across alternative move orders.
+  * Out-of-book detection and deepest book ply calculation.
+  * History truncation and interactive King's Gambit branching.
+  * Search and ECO volume filtering (A, B, C, D, E).
+  * Legal playability of all candidate continuations across diverse positions.
 * **Opening Database Suite (`opening-database.test.ts`):** **52 PASSED, 0 FAILED**.
-  * Verified A00, A99, B00, B99, C00, C99, D00, D99, E00, E99 coverage, full 500-ECO audit, name search, ECO search, mainline recognition, variation recognition, partial sequence matching, unknown opening handling, transposition recognition, undo/redo updates, IndexedDB access, duplicate prevention, and schema integrity.
 * **Chessboard & Controls Suite (`chessboard-controls.test.ts`):** **65 PASSED, 0 FAILED**.
 * **Resource Integration Suite (`run-all-integration-tests.ts`):** **23 PASSED, 0 FAILED**.
-* **Total Project Automated Checks:** **140 PASSED, 0 FAILED**.
+* **Total Project Automated Checks:** **243 PASSED, 0 FAILED**.
 * **TypeScript Compilation (`tsc`):** **0 errors**.
-* **Production Build (`vite build`):** Clean build in 17.1s. Code-split with `openings-data` chunk (`229.2 kB` gzip) and main app entry (`79.5 kB` gzip).
-* **Development Server:** Verified responsive at `http://127.0.0.1:3000` with HTTP 200 OK.
+* **Production Build (`vite build`):** Clean build in 23.1s (`openings-data` chunk 229.2 kB gzip, main entry 84.3 kB gzip).
+* **Zero External Calls / ₹0 Budget:** Fully verified offline, zero paid dependencies, zero telemetry.
 
 ---
 
-## 4. Known Dataset Characteristics & Limitations
-* **Fact-Based Classification:** The dataset classifies named positions according to standard master opening taxonomy. Deep endgame positions or arbitrary pawn pushes that have no master historical name are classified as uncatalogued positions.
-* **Multiple Line Names:** Some openings have multiple move orders to reach the same named position. These are retained as distinct records with unique IDs to support all move-order transpositions.
+## 4. Work Completed to Date
+1. **Prompt 6:** Project foundation, architecture research, Vite + React + TypeScript setup, and dependency lock.
+2. **Prompt 7:** Interactive chessboard (Chessground), controls engine (Chess.js), history navigation, promotion modal, FEN/PGN import/export, dark/light themes.
+3. **Prompt 8:** Local chess opening database (3,865 records, 500 ECO codes A00–E99), IndexedDB persistence, opening recognition engine.
+4. **Prompt 9:** Opening Variation Tree engine (8,802 nodes), visual Opening Explorer panel, candidate continuations, transposition lookup, out-of-book recovery, and bidirectional board synchronization.
 
 ---
 
 ## 5. Next Development Phase
-* **Phase 3: Opening Variation Tree Explorer**
-  * Interactive branching tree view.
-  * Move-by-move variation comparison.
-  * Strategic plans, tactical motifs, and opening traps.
+* **Prompt 10: Stockfish WebAssembly Engine Integration & Position Evaluation**
+  * Stockfish WebAssembly Web Worker integration via UCI protocol.
+  * Real-time evaluation bar (+/- centipawns and mate-in-N).
+  * Best move arrow overlays on the interactive board.
+  * Engine depth, nodes, and candidate principal variation (PV) displays.
+  * Strict ₹0 budget, local Web Worker only (no cloud API).

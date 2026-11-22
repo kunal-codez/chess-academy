@@ -9,9 +9,10 @@ import { MoveHistory } from './MoveHistory.tsx';
 import { GameStatusBadge } from './GameStatusBadge.tsx';
 import { PromotionModal } from './PromotionModal.tsx';
 import { LoadPositionModal } from './LoadPositionModal.tsx';
+import { OpeningExplorerPanel } from '../explorer/OpeningExplorerPanel.tsx';
 import { openingDatabase } from '../../services/OpeningDatabaseService.ts';
-import type { OpeningRecognitionResult } from '../../types/opening.types.ts';
-import { Sun, Moon } from 'lucide-react';
+import type { OpeningRecognitionResult, OpeningRecord } from '../../types/opening.types.ts';
+import { Sun, Moon, BookOpen, History as HistoryIcon } from 'lucide-react';
 
 export const InteractiveChessArena: React.FC = () => {
   const chessRef = useRef<ChessService>(new ChessService());
@@ -28,6 +29,7 @@ export const InteractiveChessArena: React.FC = () => {
   const [gameStatus, setGameStatus] = useState<GameStatus>(chessRef.current.getGameStatus());
   const [recognizedOpening, setRecognizedOpening] = useState<OpeningRecognitionResult | undefined>(undefined);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [sidebarTab, setSidebarTab] = useState<'explorer' | 'history'>('explorer');
 
   // Promotion Dialog State
   const [pendingPromotion, setPendingPromotion] = useState<{
@@ -201,6 +203,30 @@ export const InteractiveChessArena: React.FC = () => {
     setLoadModalOpen(true);
   };
 
+  const handlePlayCandidate = (san: string) => {
+    if (currentPly < historySnapshots.length) {
+      chessRef.current.truncateToPly(currentPly);
+    }
+    const res = chessRef.current.makeSanMove(san);
+    if (res.success) {
+      syncState();
+    }
+  };
+
+  const handleLoadOpening = (record: OpeningRecord) => {
+    const res = chessRef.current.loadMoveSequence(record.movesSan);
+    if (res.success) {
+      syncState();
+    }
+  };
+
+  const handleReturnToBook = (ply: number) => {
+    const res = chessRef.current.truncateToPly(ply);
+    if (res.success) {
+      syncState();
+    }
+  };
+
   const isViewingHistory = currentPly < historySnapshots.length;
 
   return (
@@ -277,7 +303,7 @@ export const InteractiveChessArena: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Move History & Controls (5 cols on Desktop) */}
+          {/* Right Column: Opening Explorer / Move History & Controls (5 cols on Desktop) */}
           <div className="lg:col-span-5 flex flex-col space-y-4">
             {/* Board Controls */}
             <BoardControls
@@ -293,18 +319,81 @@ export const InteractiveChessArena: React.FC = () => {
               canRedo={chessRef.current.canRedo()}
             />
 
-            {/* Move History Table with Navigation */}
-            <div className="flex-1 min-h-[300px]">
-              <MoveHistory
-                snapshots={historySnapshots}
-                currentPly={currentPly}
-                onSelectPly={handleSelectPly}
-                onFirst={handleFirstMove}
-                onPrev={handlePrevMove}
-                onNext={handleNextMove}
-                onLast={handleLastMove}
-              />
+            {/* Sidebar View Switcher Tabs */}
+            <div
+              className={`flex items-center gap-1.5 p-1 rounded-xl border text-xs font-semibold ${
+                theme === 'dark'
+                  ? 'bg-slate-900 border-slate-800'
+                  : 'bg-white border-slate-200'
+              }`}
+            >
+              <button
+                onClick={() => setSidebarTab('explorer')}
+                className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                  sidebarTab === 'explorer'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : theme === 'dark'
+                    ? 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <BookOpen size={14} />
+                <span>Opening Explorer</span>
+              </button>
+
+              <button
+                onClick={() => setSidebarTab('history')}
+                className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                  sidebarTab === 'history'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : theme === 'dark'
+                    ? 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <HistoryIcon size={14} />
+                <span>Move History</span>
+                <span
+                  className={`ml-1 text-[10px] px-1.5 py-0.2 rounded-full ${
+                    sidebarTab === 'history'
+                      ? 'bg-emerald-700 text-emerald-100'
+                      : theme === 'dark'
+                      ? 'bg-slate-800 text-slate-400'
+                      : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {historySnapshots.length}
+                </span>
+              </button>
             </div>
+
+            {/* Tab Body: Opening Explorer Panel or Move History Table */}
+            {sidebarTab === 'explorer' ? (
+              <OpeningExplorerPanel
+                currentFen={fen}
+                currentEpd={chessRef.current.getEpd()}
+                playedMovesSan={historySnapshots.slice(0, currentPly).map((s) => s.san)}
+                currentPly={currentPly}
+                recognizedOpening={recognizedOpening}
+                onPlayCandidate={handlePlayCandidate}
+                onLoadOpening={handleLoadOpening}
+                onReturnToBook={handleReturnToBook}
+                onSelectPly={handleSelectPly}
+                theme={theme}
+              />
+            ) : (
+              <div className="flex-1 min-h-[300px]">
+                <MoveHistory
+                  snapshots={historySnapshots}
+                  currentPly={currentPly}
+                  onSelectPly={handleSelectPly}
+                  onFirst={handleFirstMove}
+                  onPrev={handlePrevMove}
+                  onNext={handleNextMove}
+                  onLast={handleLastMove}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

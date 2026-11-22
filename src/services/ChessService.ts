@@ -226,6 +226,87 @@ export class ChessService {
     }
   }
 
+  public makeSanMove(san: string): MoveResult {
+    try {
+      const move = this.game.move(san);
+      if (!move) {
+        return { success: false, fen: this.game.fen() };
+      }
+
+      const ply = this.snapshots.length + 1;
+      const moveNumber = Math.ceil(ply / 2);
+      this.snapshots.push({
+        ply,
+        moveNumber,
+        color: move.color,
+        san: move.san,
+        from: move.from,
+        to: move.to,
+        fen: this.game.fen()
+      });
+
+      this.redoStack = [];
+
+      return {
+        success: true,
+        san: move.san,
+        from: move.from,
+        to: move.to,
+        captured: move.captured,
+        promotion: move.promotion,
+        isCheck: this.game.inCheck(),
+        isCheckmate: this.game.isCheckmate(),
+        isDraw: this.game.isDraw(),
+        isStalemate: this.game.isStalemate(),
+        isThreefold: this.game.isThreefoldRepetition(),
+        fen: this.game.fen()
+      };
+    } catch {
+      return { success: false, fen: this.game.fen() };
+    }
+  }
+
+  public loadMoveSequence(movesSan: string[]): { success: boolean; error?: string } {
+    try {
+      this.game.reset();
+      this.initialFen = this.game.fen();
+      this.snapshots = [];
+      this.redoStack = [];
+
+      for (const san of movesSan) {
+        const move = this.game.move(san);
+        if (!move) {
+          return { success: false, error: `Illegal move in sequence: ${san}` };
+        }
+        const ply = this.snapshots.length + 1;
+        const moveNumber = Math.ceil(ply / 2);
+        this.snapshots.push({
+          ply,
+          moveNumber,
+          color: move.color,
+          san: move.san,
+          from: move.from,
+          to: move.to,
+          fen: this.game.fen()
+        });
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Failed to load move sequence' };
+    }
+  }
+
+  public truncateToPly(ply: number): { success: boolean; error?: string } {
+    if (ply < 0 || ply > this.snapshots.length) {
+      return { success: false, error: `Invalid ply: ${ply}` };
+    }
+    if (ply === this.snapshots.length) {
+      return { success: true };
+    }
+    const moves = this.snapshots.slice(0, ply).map(s => s.san);
+    return this.loadMoveSequence(moves);
+  }
+
   public undo(): Move | null {
     const move = this.game.undo();
     if (move) {
