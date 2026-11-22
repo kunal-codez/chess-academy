@@ -9,8 +9,8 @@
 
 ## 2. Resource Verification Status
 * **Chess.js (`1.4.0` / BSD-2-Clause):** Fully verified rules engine, FEN/PGN, legal move calculation, move sequence loading.
-* **Chessground (`9.2.1` / GPL-3.0):** Native board viewport, drag/drop, touch events, coordinates, arrows.
-* **Stockfish WASM (`10.0.2` / GPL-3.0):** WebAssembly engine binary verified in `public/engine/stockfish.wasm` with `\0asm` magic header.
+* **Chessground (`9.2.1` / GPL-3.0):** Native board viewport, drag/drop, touch events, coordinates, arrows (`autoShapes`).
+* **Stockfish WASM (`10.0.2` / GPL-3.0):** WebAssembly engine binary verified in `public/engine/stockfish.wasm` with `\0asm` magic header and single-threaded Worker loader `stockfish.wasm.js` (with `stockfish.js` fallback).
 * **Lichess Opening Classification Dataset:** 3,865 opening records across 500 ECO codes (A00–E99) bundled locally (CC0 Public Domain).
 * **Dexie.js (`4.0.1` / Apache-2.0):** Persistent IndexedDB storage with `openings`, `savedPositions`, `repertoires`, and `lichessCache` tables.
 
@@ -29,17 +29,27 @@
   - [x] Search & retrieval service (by Name, ECO code, Family, Variation, and ECO range).
   - [x] Local storage with IndexedDB (Dexie `openings` table) and duplicate import prevention.
   - [x] Reactive recognition integration with the interactive chessboard.
-  - [x] 52-point automated test suite passing with 100% success rate (140 total automated checks project-wide).
+  - [x] 52-point automated test suite passing with 100% success rate.
 - [x] **Phase 3 (Prompt 9): Opening Variation Tree Explorer & Bidirectional Board Sync**
   - [x] Trie variation tree engine (`OpeningTreeService.ts`) with 8,802 nodes and precalculated descendant counts.
   - [x] Indexing of 7,983 unique board EPDs and 590 intermediate transpositions for instant lookup.
   - [x] Ranked continuations (e.g. 1.e4: 2,032 lines, 1.d4: 1,333 lines; Najdorf: 6.Bg5 14 lines, 6.Be3 10 lines, etc.).
   - [x] Out-of-book detection and deepest book ply recovery (`findDeepestBookPly`).
   - [x] Interactive visual Opening Explorer panel (`OpeningExplorerPanel.tsx`) with Continuations view and Search & Browse view.
-  - [x] Full bidirectional synchronization between the board and explorer (one-click candidate play, load opening line, return to book).
+  - [x] Full bidirectional synchronization between the board and explorer.
   - [x] History truncation and dynamic alternative branching (`truncateToPly`, `makeSanMove`, `loadMoveSequence`).
-  - [x] 103-point automated integration test suite (`opening-explorer.test.ts`), bringing total automated tests to **243 PASSED, 0 FAILED**.
-- [ ] **Phase 4 (Prompt 10): Local Stockfish Engine & Evaluation Bar** (Continuous evaluation, multi-PV candidate lines, depth controls, blunder detector).
+  - [x] 103-point automated integration test suite (`opening-explorer.test.ts`).
+- [x] **Phase 4 (Prompt 10): Local Stockfish Engine & Evaluation Bar**
+  - [x] Isolated Web Worker engine lifecycle management (`StockfishService.ts`) with `stockfish.wasm` and `stockfish.js` fallback.
+  - [x] Zero SharedArrayBuffer / single-threaded WASM execution (no COOP/COEP crashes).
+  - [x] Pure UCI output parser (`UciParser.ts`) with White-perspective score normalization (`score cp` and `score mate`).
+  - [x] Smooth logistic win percentage calculation for Evaluation Bar (clamped 3%–97%, 100%/0% for mate).
+  - [x] UCI PV to legal SAN move sequences with move numbers and PGN formatting.
+  - [x] Vertical Evaluation Bar (`EvaluationBar.tsx`) with smooth CSS animation and orientation-aware fill inversion.
+  - [x] MultiPV Engine Analysis panel (`EngineAnalysisPanel.tsx`) with depth presets, 1-3 lines, and one-click play.
+  - [x] Recommended move arrow overlay on Chessground (`autoShapes`).
+  - [x] Debounce and searchId race-condition protection.
+  - [x] 64-point automated test suite (`stockfish-evaluation.test.ts`), bringing total automated checks to **307 PASSED, 0 FAILED**.
 - [ ] **Phase 5: Opening Statistics Dashboard** (Lichess master/player database stats, rating filters, win percentage charts).
 - [ ] **Phase 6: Personal Repertoire Builder** (White & Black repertoires, custom notes, PGN import/export, Dexie persistence).
 - [ ] **Phase 7: Interactive Training Arena** (Spaced Repetition SM-2, guess the move, memory recall, blunder repetition).

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { Key } from 'chessground/types';
 import type { PieceSymbol } from 'chess.js';
 import { ChessService } from '../../services/ChessService.ts';
@@ -10,7 +10,11 @@ import { GameStatusBadge } from './GameStatusBadge.tsx';
 import { PromotionModal } from './PromotionModal.tsx';
 import { LoadPositionModal } from './LoadPositionModal.tsx';
 import { OpeningExplorerPanel } from '../explorer/OpeningExplorerPanel.tsx';
+import { EvaluationBar } from '../engine/EvaluationBar.tsx';
+import { EngineAnalysisPanel } from '../engine/EngineAnalysisPanel.tsx';
 import { openingDatabase } from '../../services/OpeningDatabaseService.ts';
+import { stockfishEngine } from '../../services/StockfishService.ts';
+import type { EngineEvaluationState } from '../../services/StockfishService.ts';
 import type { OpeningRecognitionResult, OpeningRecord } from '../../types/opening.types.ts';
 import { Sun, Moon, BookOpen, History as HistoryIcon } from 'lucide-react';
 
@@ -30,6 +34,11 @@ export const InteractiveChessArena: React.FC = () => {
   const [recognizedOpening, setRecognizedOpening] = useState<OpeningRecognitionResult | undefined>(undefined);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [sidebarTab, setSidebarTab] = useState<'explorer' | 'history'>('explorer');
+
+  // Stockfish Engine State
+  const [isEngineEnabled, setIsEngineEnabled] = useState<boolean>(false);
+  const [showBestMoveArrow, setShowBestMoveArrow] = useState<boolean>(true);
+  const [engineState, setEngineState] = useState<EngineEvaluationState>(stockfishEngine.getState());
 
   // Promotion Dialog State
   const [pendingPromotion, setPendingPromotion] = useState<{
@@ -86,6 +95,45 @@ export const InteractiveChessArena: React.FC = () => {
   useEffect(() => {
     syncState();
   }, [syncState]);
+
+  // Subscribe to Stockfish engine state updates
+  useEffect(() => {
+    const unsubscribe = stockfishEngine.subscribe((state) => {
+      setEngineState(state);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Trigger evaluation when FEN changes (if engine is enabled)
+  useEffect(() => {
+    if (isEngineEnabled && fen) {
+      stockfishEngine.evaluatePosition(fen);
+    }
+  }, [isEngineEnabled, fen]);
+
+  // Clean up worker evaluation on unmount
+  useEffect(() => {
+    return () => {
+      stockfishEngine.stop();
+    };
+  }, []);
+
+  // Compute best move arrow for Chessground
+  const boardShapes = useMemo(() => {
+    if (!isEngineEnabled || !showBestMoveArrow || !engineState.bestMove) {
+      return [];
+    }
+    const { from, to } = engineState.bestMove;
+    return [
+      {
+        orig: from as Key,
+        dest: to as Key,
+        brush: 'green'
+      }
+    ];
+  }, [isEngineEnabled, showBestMoveArrow, engineState.bestMove]);
 
   // Handle move from user interaction
   const handleMove = (orig: Key, dest: Key) => {
@@ -227,6 +275,36 @@ export const InteractiveChessArena: React.FC = () => {
     }
   };
 
+  const handleToggleEngine = () => {
+    setIsEngineEnabled((prev) => {
+      const next = !prev;
+      if (next) {
+        stockfishEngine.init().then(() => {
+          stockfishEngine.evaluatePosition(fen, { forceImmediate: true });
+        });
+      } else {
+        stockfishEngine.stop();
+      }
+      return next;
+    });
+  };
+
+  const handleToggleBestMoveArrow = () => {
+    setShowBestMoveArrow((prev) => !prev);
+  };
+
+  const handleChangeDepth = (depth: number) => {
+    stockfishEngine.setDepth(depth);
+  };
+
+  const handleChangeMultiPv = (multiPv: number) => {
+    stockfishEngine.setMultiPv(multiPv);
+  };
+
+  const handlePlayEngineMove = (san: string) => {
+    handlePlayCandidate(san);
+  };
+
   const isViewingHistory = currentPly < historySnapshots.length;
 
   return (
@@ -274,18 +352,33 @@ export const InteractiveChessArena: React.FC = () => {
               recognizedOpening={recognizedOpening}
             />
 
-            {/* Chessground Board */}
-            <div className="w-full">
-              <ChessgroundBoard
-                fen={fen}
-                orientation={orientation}
-                turnColor={turnColor}
-                dests={dests}
-                check={check}
-                lastMove={lastMove}
-                interactive={!isViewingHistory && !gameStatus.isGameOver}
-                onMove={handleMove}
-              />
+            {/* Chessboard Area with Vertical Evaluation Bar */}
+            <div className="w-full flex items-stretch justify-center gap-2 sm:gap-3">
+              {/* Evaluation Bar alongside the board */}
+              <div className="flex items-stretch shrink-0 py-1">
+                <EvaluationBar
+                  whitePercentage={engineState.evaluationBar.whitePercentage}
+                  displayScore={engineState.evaluationBar.displayScore}
+                  orientation={orientation}
+                  isEnabled={isEngineEnabled}
+                  theme={theme}
+                />
+              </div>
+
+              {/* Chessground Board */}
+              <div className="flex-1 max-w-[500px]">
+                <ChessgroundBoard
+                  fen={fen}
+                  orientation={orientation}
+                  turnColor={turnColor}
+                  dests={dests}
+                  check={check}
+                  lastMove={lastMove}
+                  interactive={!isViewingHistory && !gameStatus.isGameOver}
+                  onMove={handleMove}
+                  shapes={boardShapes}
+                />
+              </div>
             </div>
 
             {/* Active FEN Display Bar */}
@@ -300,6 +393,21 @@ export const InteractiveChessArena: React.FC = () => {
                 <span className="font-bold text-slate-400 mr-1.5">FEN:</span>
                 {fen}
               </div>
+            </div>
+
+            {/* Engine Analysis Panel */}
+            <div className="w-full">
+              <EngineAnalysisPanel
+                engineState={engineState}
+                isEngineEnabled={isEngineEnabled}
+                showBestMoveArrow={showBestMoveArrow}
+                onToggleEngine={handleToggleEngine}
+                onToggleBestMoveArrow={handleToggleBestMoveArrow}
+                onChangeDepth={handleChangeDepth}
+                onChangeMultiPv={handleChangeMultiPv}
+                onPlayMove={handlePlayEngineMove}
+                theme={theme}
+              />
             </div>
           </div>
 

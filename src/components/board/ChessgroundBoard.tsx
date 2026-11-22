@@ -59,7 +59,8 @@ export const ChessgroundBoard: React.FC<ChessgroundBoardProps> = ({
       },
       drawable: {
         enabled: true,
-        shapes
+        autoShapes: shapes,
+        shapes: []
       }
     };
 
@@ -102,7 +103,7 @@ export const ChessgroundBoard: React.FC<ChessgroundBoardProps> = ({
         enabled: interactive
       },
       drawable: {
-        shapes
+        autoShapes: shapes
       }
     });
   }, [fen, orientation, turnColor, dests, check, lastMove, interactive, shapes]);
