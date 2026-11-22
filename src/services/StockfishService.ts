@@ -69,8 +69,16 @@ export class StockfishService {
   private readyResolvers: (() => void)[] = [];
   private workerPath: string;
 
+  private static getBaseUrl(): string {
+    try {
+      return import.meta.env?.BASE_URL ?? '/';
+    } catch {
+      return '/';
+    }
+  }
+
   constructor(workerPath?: string) {
-    this.workerPath = workerPath || '/engine/stockfish.wasm.js';
+    this.workerPath = workerPath || `${StockfishService.getBaseUrl()}engine/stockfish.wasm.js`;
   }
 
   public static getInstance(workerPath?: string): StockfishService {
@@ -136,7 +144,7 @@ export class StockfishService {
       this.worker = null;
     }
 
-    this.workerPath = '/engine/stockfish.js';
+    this.workerPath = `${StockfishService.getBaseUrl()}engine/stockfish.js`;
     try {
       this.worker = new Worker(this.workerPath);
       this.worker.onmessage = this.handleMessage.bind(this);
