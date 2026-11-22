@@ -2,6 +2,7 @@ import Dexie from 'dexie';
 import type { Table } from 'dexie';
 import type { OpeningRecord } from '../types/opening.types.ts';
 import type { Repertoire, RepertoireLine } from '../types/repertoire.types.ts';
+import type { LineTrainingProgress } from '../types/srs.types.ts';
 
 export interface SavedPosition {
   id?: number;
@@ -54,6 +55,7 @@ export class ChessAcademyDatabase extends Dexie {
   metadata!: Table<DatasetMetadata, string>;
   personalRepertoires!: Table<Repertoire, string>;
   repertoireLines!: Table<RepertoireLine, string>;
+  lineTrainingProgress!: Table<LineTrainingProgress, string>;
 
   constructor() {
     super('ChessAcademyDB');
@@ -73,6 +75,17 @@ export class ChessAcademyDatabase extends Dexie {
       metadata: 'key, version',
       personalRepertoires: 'id, color, name, createdAt, updatedAt',
       repertoireLines: 'id, repertoireId, eco, finalEpd, finalFen, createdAt, updatedAt'
+    });
+
+    this.version(4).stores({
+      savedPositions: '++id, fen, normalizedFen, createdAt',
+      repertoires: '++id, side, fen, name, createdAt',
+      lichessCache: 'fenKey, cachedAt',
+      openings: 'id, eco, family, name, epd, plyCount',
+      metadata: 'key, version',
+      personalRepertoires: 'id, color, name, createdAt, updatedAt',
+      repertoireLines: 'id, repertoireId, eco, finalEpd, finalFen, createdAt, updatedAt',
+      lineTrainingProgress: 'lineId, repertoireId, nextReviewAt, lastReviewedAt'
     });
   }
 }

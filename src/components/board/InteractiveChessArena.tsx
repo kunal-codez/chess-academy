@@ -11,15 +11,18 @@ import { PromotionModal } from './PromotionModal.tsx';
 import { LoadPositionModal } from './LoadPositionModal.tsx';
 import { OpeningExplorerPanel } from '../explorer/OpeningExplorerPanel.tsx';
 import { RepertoirePanel } from '../repertoire/RepertoirePanel.tsx';
+import { TrainerPanel } from '../training/TrainerPanel.tsx';
 import { EvaluationBar } from '../engine/EvaluationBar.tsx';
 import { EngineAnalysisPanel } from '../engine/EngineAnalysisPanel.tsx';
 import { openingDatabase } from '../../services/OpeningDatabaseService.ts';
 import { stockfishEngine } from '../../services/StockfishService.ts';
 import { repertoireService } from '../../services/RepertoireService.ts';
+import { drillSession } from '../../services/DrillSessionService.ts';
+import type { DrillSessionState } from '../../services/DrillSessionService.ts';
 import type { EngineEvaluationState } from '../../services/StockfishService.ts';
 import type { OpeningRecognitionResult, OpeningRecord } from '../../types/opening.types.ts';
 import type { RepertoireLine } from '../../types/repertoire.types.ts';
-import { Sun, Moon, BookOpen, History as HistoryIcon, Bookmark } from 'lucide-react';
+import { Sun, Moon, BookOpen, History as HistoryIcon, Bookmark, GraduationCap } from 'lucide-react';
 
 export const InteractiveChessArena: React.FC = () => {
   const chessRef = useRef<ChessService>(new ChessService());
@@ -36,7 +39,11 @@ export const InteractiveChessArena: React.FC = () => {
   const [gameStatus, setGameStatus] = useState<GameStatus>(chessRef.current.getGameStatus());
   const [recognizedOpening, setRecognizedOpening] = useState<OpeningRecognitionResult | undefined>(undefined);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [sidebarTab, setSidebarTab] = useState<'explorer' | 'history' | 'repertoire'>('explorer');
+  const [sidebarTab, setSidebarTab] = useState<'explorer' | 'history' | 'repertoire' | 'train'>('explorer');
+
+  // Drill Mode State
+  const [drillState, setDrillState] = useState<DrillSessionState>(drillSession.getState());
+  const isDrilling = drillState.status === 'drilling' || drillState.status === 'line_completed';
 
   // Stockfish Engine State
   const [isEngineEnabled, setIsEngineEnabled] = useState<boolean>(false);
@@ -123,8 +130,62 @@ export const InteractiveChessArena: React.FC = () => {
     };
   }, []);
 
-  // Compute best move arrow for Chessground
+  // Subscribe to DrillSession updates
+  useEffect(() => {
+    const unsub = drillSession.subscribe((state) => {
+      setDrillState(state);
+
+      if (state.status === 'drilling' || state.status === 'line_completed') {
+        if (state.repertoire) {
+          setOrientation(state.repertoire.color);
+        }
+
+        const drillChess = drillSession.getChessService();
+        const currentFen = drillChess.getFen();
+        const turn = drillChess.getTurn() === 'w' ? 'white' : 'black';
+        const isCheck = drillChess.inCheck();
+        const snaps = drillChess.getSnapshots();
+
+        setFen(currentFen);
+        setTurnColor(turn);
+        setCheck(isCheck);
+        setHistorySnapshots(snaps);
+        setCurrentPly(snaps.length);
+        setGameStatus(drillChess.getGameStatus());
+
+        const legalMap = new Map<Key, Key[]>();
+        drillChess.getLegalDests().forEach((toSquares, from) => {
+          legalMap.set(from as Key, toSquares as Key[]);
+        });
+        setDests(legalMap);
+
+        if (snaps.length > 0) {
+          const lastSnap = snaps[snaps.length - 1];
+          setLastMove([lastSnap.from as Key, lastSnap.to as Key]);
+        } else {
+          setLastMove(undefined);
+        }
+      }
+    });
+    return unsub;
+  }, []);
+
+  // Engine spoiler protection: disable Stockfish when drill mode is active
+  useEffect(() => {
+    if (isDrilling) {
+      if (isEngineEnabled) {
+        setIsEngineEnabled(false);
+        stockfishEngine.stop();
+      }
+      setSidebarTab('train');
+    }
+  }, [isDrilling, isEngineEnabled]);
+
+  // Compute shapes for Chessground (hints during drill, engine arrow during free play)
   const boardShapes = useMemo(() => {
+    if (isDrilling) {
+      return drillState.shapes || [];
+    }
     if (!isEngineEnabled || !showBestMoveArrow || !engineState.bestMove) {
       return [];
     }
@@ -136,10 +197,20 @@ export const InteractiveChessArena: React.FC = () => {
         brush: 'green'
       }
     ];
-  }, [isEngineEnabled, showBestMoveArrow, engineState.bestMove]);
+  }, [isDrilling, drillState.shapes, isEngineEnabled, showBestMoveArrow, engineState.bestMove]);
 
   // Handle move from user interaction
   const handleMove = (orig: Key, dest: Key) => {
+    if (isDrilling) {
+      const drillChess = drillSession.getChessService();
+      if (drillChess.isPromotionMove(orig, dest)) {
+        setPendingPromotion({ orig, dest });
+        return;
+      }
+      drillSession.handleUserMove(orig, dest);
+      return;
+    }
+
     // If user is currently inspecting past history, first fast-forward to latest position
     if (currentPly < historySnapshots.length) {
       const latestFen = chessRef.current.getFen();
@@ -171,6 +242,11 @@ export const InteractiveChessArena: React.FC = () => {
     if (!pendingPromotion) return;
     const { orig, dest } = pendingPromotion;
     setPendingPromotion(null);
+
+    if (isDrilling) {
+      drillSession.handleUserMove(orig, dest, piece);
+      return;
+    }
 
     const res = chessRef.current.makeMove(orig, dest, piece);
     if (res.success) {
@@ -410,19 +486,36 @@ export const InteractiveChessArena: React.FC = () => {
               </div>
             </div>
 
-            {/* Engine Analysis Panel */}
+            {/* Engine Analysis Panel (Hidden during drill) */}
             <div className="w-full">
-              <EngineAnalysisPanel
-                engineState={engineState}
-                isEngineEnabled={isEngineEnabled}
-                showBestMoveArrow={showBestMoveArrow}
-                onToggleEngine={handleToggleEngine}
-                onToggleBestMoveArrow={handleToggleBestMoveArrow}
-                onChangeDepth={handleChangeDepth}
-                onChangeMultiPv={handleChangeMultiPv}
-                onPlayMove={handlePlayEngineMove}
-                theme={theme}
-              />
+              {isDrilling ? (
+                <div
+                  className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+                    theme === 'dark'
+                      ? 'bg-slate-900/60 border-slate-800 text-slate-400'
+                      : 'bg-slate-100 border-slate-200 text-slate-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <GraduationCap size={16} className="text-emerald-400" />
+                    <span className="font-medium">
+                      Drill Mode Active — Engine analysis hidden to prevent spoilers.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <EngineAnalysisPanel
+                  engineState={engineState}
+                  isEngineEnabled={isEngineEnabled}
+                  showBestMoveArrow={showBestMoveArrow}
+                  onToggleEngine={handleToggleEngine}
+                  onToggleBestMoveArrow={handleToggleBestMoveArrow}
+                  onChangeDepth={handleChangeDepth}
+                  onChangeMultiPv={handleChangeMultiPv}
+                  onPlayMove={handlePlayEngineMove}
+                  theme={theme}
+                />
+              )}
             </div>
           </div>
 
@@ -430,16 +523,16 @@ export const InteractiveChessArena: React.FC = () => {
           <div className="lg:col-span-5 flex flex-col space-y-4">
             {/* Board Controls */}
             <BoardControls
-              onNewGame={handleNewGame}
-              onReset={handleReset}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
+              onNewGame={isDrilling ? () => {} : handleNewGame}
+              onReset={isDrilling ? () => {} : handleReset}
+              onUndo={isDrilling ? () => {} : handleUndo}
+              onRedo={isDrilling ? () => {} : handleRedo}
               onFlip={handleFlip}
               onOpenLoadModal={openLoadModal}
-              getFen={() => chessRef.current.getFen()}
-              getPgn={() => chessRef.current.getPgn()}
-              canUndo={chessRef.current.canUndo()}
-              canRedo={chessRef.current.canRedo()}
+              getFen={() => (isDrilling ? drillSession.getChessService().getFen() : chessRef.current.getFen())}
+              getPgn={() => (isDrilling ? drillSession.getChessService().getPgn() : chessRef.current.getPgn())}
+              canUndo={!isDrilling && chessRef.current.canUndo()}
+              canRedo={!isDrilling && chessRef.current.canRedo()}
             />
 
             {/* Sidebar View Switcher Tabs */}
@@ -479,6 +572,20 @@ export const InteractiveChessArena: React.FC = () => {
               </button>
 
               <button
+                onClick={() => setSidebarTab('train')}
+                className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                  sidebarTab === 'train'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : theme === 'dark'
+                    ? 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <GraduationCap size={14} />
+                <span>Train</span>
+              </button>
+
+              <button
                 onClick={() => setSidebarTab('history')}
                 className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
                   sidebarTab === 'history'
@@ -504,7 +611,7 @@ export const InteractiveChessArena: React.FC = () => {
               </button>
             </div>
 
-            {/* Tab Body: Opening Explorer Panel, Repertoire Builder, or Move History */}
+            {/* Tab Body: Opening Explorer Panel, Repertoire Builder, Trainer, or Move History */}
             {sidebarTab === 'explorer' && (
               <OpeningExplorerPanel
                 currentFen={fen}
@@ -527,6 +634,14 @@ export const InteractiveChessArena: React.FC = () => {
                 playedMovesSan={historySnapshots.slice(0, currentPly).map((s) => s.san)}
                 currentPly={currentPly}
                 onLoadLine={handleLoadRepertoireLine}
+                theme={theme}
+              />
+            )}
+
+            {sidebarTab === 'train' && (
+              <TrainerPanel
+                onSwitchToRepertoireTab={() => setSidebarTab('repertoire')}
+                onExitDrill={() => syncState()}
                 theme={theme}
               />
             )}

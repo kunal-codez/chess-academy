@@ -93,7 +93,10 @@ export const ChessgroundBoard: React.FC<ChessgroundBoardProps> = ({
       movable: {
         free: false,
         color: interactive ? turnColor : undefined,
-        dests: interactive ? dests : new Map()
+        dests: interactive ? dests : new Map(),
+        events: {
+          after: onMove
+        }
       },
       draggable: {
         enabled: interactive,

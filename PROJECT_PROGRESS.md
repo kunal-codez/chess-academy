@@ -12,7 +12,7 @@
 * **Chessground (`9.2.1` / GPL-3.0):** Native board viewport, drag/drop, touch events, coordinates, arrows (`autoShapes`).
 * **Stockfish WASM (`10.0.2` / GPL-3.0):** WebAssembly engine binary verified in `public/engine/stockfish.wasm` with `\0asm` magic header and single-threaded Worker loader `stockfish.wasm.js` (with `stockfish.js` fallback).
 * **Lichess Opening Classification Dataset:** 3,865 opening records across 500 ECO codes (A00–E99) bundled locally (CC0 Public Domain).
-* **Dexie.js (`4.0.1` / Apache-2.0):** Persistent IndexedDB storage with version 3 schema (`personalRepertoires`, `repertoireLines`, `openings`, `savedPositions`, `repertoires`, and `lichessCache`).
+* **Dexie.js (`4.0.1` / Apache-2.0):** Persistent IndexedDB storage with version 4 schema (`personalRepertoires`, `repertoireLines`, `lineTrainingProgress`, `openings`, `savedPositions`, `repertoires`, and `lichessCache`).
 
 ---
 
@@ -62,10 +62,20 @@
   - [x] Repertoire JSON export & import round-trip with collision prevention.
   - [x] Multi-line and single-line standard PGN export with full annotations.
   - [x] Interactive Repertoire Builder panel (`RepertoirePanel.tsx`) integrated in `InteractiveChessArena.tsx`.
-  - [x] 74-point automated integration test suite (`repertoire-builder.test.ts`), bringing total automated checks to **381 PASSED, 0 FAILED**.
-- [ ] **Phase 6 (Prompt 12): Spaced Repetition (SRS) Drill & Training Engine**
-  - Memory recall training reading directly from saved repertoires.
-  - Spaced Repetition scheduling algorithm (SM-2 / Leitner box).
-  - "Play the Next Move" drill mode with hints and blunder flags.
-- [ ] **Phase 7: Structured Lessons & Performance Dashboard**
-- [ ] **Phase 8: Offline PWA & Final Polish**
+  - [x] 74-point automated integration test suite (`repertoire-builder.test.ts`).
+- [x] **Phase 6 (Prompt 12): Interactive Repertoire Trainer & Spaced Repetition (SRS) Drill Mode**
+  - [x] Dexie.js schema upgrade to version 4 (`lineTrainingProgress`).
+  - [x] Pure SuperMemo SM-2 algorithm scheduler (`SrsScheduler.ts`) with quality mapping (0-5), ease factor adjustment (minimum 1.3), and interval progressions (1d -> 6d -> I*EF).
+  - [x] Due queue sorting (overdue lines prioritized first, followed by new lines and future lines).
+  - [x] Dedicated drill session controller (`DrillSessionService.ts`) with Due Review and Practice All modes.
+  - [x] Automatic board orientation and automated opponent reply timing (~300ms, configurable).
+  - [x] Automatic move 1 for opponent when drilling Black repertoires.
+  - [x] Move-by-move validation with instant snapback on incorrect attempts.
+  - [x] Two-level hint engine (Level 1: source square highlight; Level 2: full move arrow).
+  - [x] Engine spoiler protection (Stockfish engine stopped, evaluation bar and arrows suppressed).
+  - [x] Interactive Trainer UI (`TrainerPanel.tsx`) integrated into `InteractiveChessArena.tsx` with Pre-Drill dashboard, Active Drill HUD, and Session Summary.
+  - [x] 60-point automated integration test suite (`repertoire-trainer.test.ts`), bringing total automated checks to **441 PASSED, 0 FAILED**.
+- [ ] **Phase 7 (Prompt 13): Offline PWA Installability & Final Production Polish (v1.0 Release)**
+  - Service Worker offline caching via `vite-plugin-pwa` and Workbox.
+  - Web App Manifest, app icons, and offline fallback strategy.
+  - Lighthouse PWA compliance and v1.0 release packaging.

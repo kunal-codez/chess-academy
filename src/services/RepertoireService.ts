@@ -103,8 +103,9 @@ export class RepertoireService {
   }
 
   public async deleteRepertoire(id: string): Promise<void> {
-    await db.transaction('rw', db.personalRepertoires, db.repertoireLines, async () => {
-      // Cascade delete all lines associated with this repertoire
+    await db.transaction('rw', db.personalRepertoires, db.repertoireLines, db.lineTrainingProgress, async () => {
+      // Cascade delete all lines and SRS progress associated with this repertoire
+      await db.lineTrainingProgress.where('repertoireId').equals(id).delete();
       await db.repertoireLines.where('repertoireId').equals(id).delete();
       await db.personalRepertoires.delete(id);
     });
@@ -269,8 +270,11 @@ export class RepertoireService {
   public async deleteLine(id: string): Promise<void> {
     const line = await db.repertoireLines.get(id);
     if (line) {
-      await db.repertoireLines.delete(id);
-      await db.personalRepertoires.update(line.repertoireId, { updatedAt: new Date().toISOString() });
+      await db.transaction('rw', db.personalRepertoires, db.repertoireLines, db.lineTrainingProgress, async () => {
+        await db.lineTrainingProgress.where('lineId').equals(id).delete();
+        await db.repertoireLines.delete(id);
+        await db.personalRepertoires.update(line.repertoireId, { updatedAt: new Date().toISOString() });
+      });
     }
   }
 
